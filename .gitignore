@@ -1,0 +1,15 @@
+# src ( image, video, etc.. )
+/src/
+
+# main ( executable file )
+/main
+
+# syntax test, ability test
+/test.cpp
+
+# etc
+/CMakeLists.txt
+/cmake-build-debug
+/.vscode
+/.idea
+.DS_Store
