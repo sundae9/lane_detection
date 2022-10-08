@@ -180,6 +180,7 @@ void videoHandler(const string &file_name) {
 //        cout << idx++ << ' ';
     }
 //    cout << '\n';
+    video.release();
 }
 
 void imageHandler(const string &file_name) {
@@ -201,9 +202,8 @@ int main() {
         cout << "can't find image list\n";
         return 1;
     }
-    VideoCapture cap(file_list[0]);
-    cap >> sampleImage;
-    cout << sampleImage.cols << ' ' << sampleImage.rows;
+//    VideoCapture cap(file_list[0]);
+//    cap >> sampleImage;
 
 //    setPolygon();
 //    cap.release();
