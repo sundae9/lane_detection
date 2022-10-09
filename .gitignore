@@ -1,8 +1,10 @@
 # src ( image, video, etc.. )
-/src/
+/lee/src/
+/lee/test.csv
+/lee/tmp.png
 
 # main ( executable file )
-/main
+/lee/main
 
 # syntax test, ability test
 /test.cpp
