@@ -29,7 +29,7 @@ with open(DST_PREFIX + title, 'w') as file:
         for j in range(tc):
             file.write(",#{}, ".format(j+1))
             for k in range(len(tasks)):
-                file.write(content[j][i][j]+",")
+                file.write(content[j][i][k]+",")
             file.write("\n")
         file.write("\n")
 
