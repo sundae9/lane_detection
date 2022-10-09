@@ -6,6 +6,7 @@ using namespace cv;
 
 #define width 640
 #define height 480
+#define proc_size 20
 
 typedef Vec4i Line;
 
@@ -40,15 +41,15 @@ void info_mat(Mat mat)
 
 struct
 {
-    double min_time[20];
-    double max_time[20];
-    double total_time[20];
+    double min_time[proc_size];
+    double max_time[proc_size];
+    double total_time[proc_size];
 } typedef Time_info;
 
 struct
 {
-    int min_frame[20];
-    int max_frame[20];
+    int min_frame[proc_size];
+    int max_frame[proc_size];
     int total_frame;
 } typedef Frame_info;
 
@@ -58,17 +59,10 @@ struct
     Frame_info frame_info;
 } typedef Video_info;
 
-double Timechecker(TickMeter tm)
+void Time_record(TickMeter &tm, Video_info *video_info, int idx)
 {
     tm.stop();
-    double time = tm.getTimeMilli();
-    tm.start();
-    return time;
-}
-
-void Time_record(TickMeter tm, Video_info *video_info, int idx)
-{
-    double cur_time = Timechecker(tm);
+    double cur_time = tm.getTimeMilli();
 
     if (video_info->frame_info.total_frame != 1 && video_info->time_info.max_time[idx] < cur_time)
     {
@@ -82,7 +76,9 @@ void Time_record(TickMeter tm, Video_info *video_info, int idx)
         video_info->frame_info.min_frame[idx] = video_info->frame_info.total_frame;
     }
 
-    video_info->time_info.total_time[idx] += cur_time;
+    video_info->time_info.total_time[idx] += tm.getTimeMilli();
+    tm.reset();
+    tm.start();
 }
 
 void Pirnt_info(Video_info *video_info, int idx)
@@ -99,12 +95,13 @@ int main()
     int w, h;
     Mat frame, resize_frame, gray_frame, mask;
     vector<Point> pts;
-    TickMeter tm;
+    TickMeter tm, tm2;
     Mat binarization, edge, dst, closed_edge;
     vector<Vec4i> lines, filtered_lines;
     double fps;
-    string filepath = "./src/";
-    string filename = "실선 + 음영 + 노면표시.avi";
+    string filepath = "./";
+    string filename = "2.avi";
+
     Video_info *video_info = (Video_info *)calloc(sizeof(Video_info), 1);
     int idx = 0;
 
@@ -131,7 +128,7 @@ int main()
     mask = Mat::zeros(h, w, CV_8UC1);
     fillPoly(mask, pts, Scalar(255), LINE_AA);
     mask = ~mask;
-
+    double total;
     video_info->frame_info.total_frame = 0;
     for (int i = 0; i < 20; i++)
     {
@@ -140,15 +137,18 @@ int main()
 
     while (true)
     {
-        tm.reset();
-        tm.start();
+        long t1 = getTickCount();
+
         video_info->frame_info.total_frame += 1;
 
         cap >> frame;
         if (frame.empty())
             break;
         idx = 0;
-
+        tm.reset();
+        tm.start();
+        tm2.reset();
+        tm2.start();
         // resize(frame, resize_frame, Size(w, h));
         // Time_record(tm, video_info, idx++);
 
@@ -200,21 +200,29 @@ int main()
         line(dst, Point(320, 0), Point(320, 360), Scalar(0, 255, 0), 2, LINE_AA);
         Time_record(tm, video_info, idx++);
 
-        imshow("original", frame);
-        imshow("dst", dst);
-        imshow("binarization", binarization);
-        // imshow("closed_edge", closed_edge);
+        // imshow("original", frame);
+        // imshow("dst", dst);
+        // imshow("binarization", binarization);
+        // // imshow("closed_edge", closed_edge);
 
-        resizeWindow("original", w, h);
-        resizeWindow("dst", w, h);
-        resizeWindow("binarization", w, h);
-        // resizeWindow("closed_edge", w, h);
+        // resizeWindow("original", w, h);
+        // resizeWindow("dst", w, h);
+        // resizeWindow("binarization", w, h);
+        // // resizeWindow("closed_edge", w, h);
 
-        moveWindow("dst", w, 0);
-        moveWindow("binarization", 0, h);
-        // moveWindow("closed_edge", w, h);
+        // moveWindow("dst", w, 0);
+        // moveWindow("binarization", 0, h);
+        // // moveWindow("closed_edge", w, h);
+
+        Time_record(tm2, video_info, idx++);
+
+        long t2 = getTickCount();
+        double ms = (t2 - t1) * 1000 / getTickFrequency();
 
         tm.stop();
+
+        if (video_info->frame_info.total_frame >= 10)
+            break;
 
         if (waitKey(delay) > 0)
         {
