@@ -22,14 +22,14 @@ for file in file_list:
     f.close()
 
 with open(DST_PREFIX + title, 'w') as file:
-    file.write(", ," + ','.join(subject) + "\n")
+    file.write(", ," + ','.join(tasks) + "\n")
 
-    for k in range(len(tasks)):
-        file.write(tasks[k])
+    for i in range(len(subject)):
+        file.write(subject[i])
         for j in range(tc):
             file.write(",#{}, ".format(j+1))
-            for i in range(len(subject)):
-                file.write(content[j][i][k]+",")
+            for k in range(len(tasks)):
+                file.write(content[j][i][j]+",")
             file.write("\n")
         file.write("\n")
 
