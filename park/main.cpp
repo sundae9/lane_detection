@@ -178,8 +178,10 @@ void videoHandler(const string &file_name) {
         test(frame);
         waitKey(delay);
 //        cout << idx++ << ' ';
+//        if (idx == 10) break;
     }
 //    cout << '\n';
+
     video.release();
 }
 
