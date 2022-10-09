@@ -162,7 +162,7 @@ void videoHandler(const string &file_name) {
         return;
     }
 
-    Mat frame, resized_frame;
+    Mat frame;
 //    double fps = video.get(CAP_PROP_FPS);
 //    int delay = cvRound(1000 / fps);
     int idx = 0;
@@ -173,7 +173,7 @@ void videoHandler(const string &file_name) {
         if (frame.empty()) {
             break;
         }
-        resize(frame, resized_frame, Size(640, 480));
+//        resize(frame, resized_frame, Size(640, 480));
 
         test(frame);
 //        cout << idx++ << ' ';

@@ -36,11 +36,11 @@ void timeLapse::print() {
         max = -1;
         sum = 0;
         cnt = this->step_record[i].size();
-//        cout << title[i] << ' ';
+        //        cout << title[i] << ' ';
 
         for (int j = 1; j < cnt; j++) {
             tmp = step_record[i][j];
-//            cout << tmp << ' ';
+            //            cout << tmp << ' ';
             sum += tmp;
             if (tmp < min) {
                 min = tmp;
@@ -51,8 +51,8 @@ void timeLapse::print() {
                 max_idx = j;
             }
         }
-//        cout << '\n';
-        avg = sum / (double) (cnt - 1);
-        cout << title[i] << ", " << min << ", " << max << ", " << avg << ", " << min_idx << ", " << max_idx << '\n';
+        //        cout << '\n';
+        avg = sum / (double)(cnt - 1);
+        cout << min << ", " << max << ", " << avg << ", " << min_idx << ", " << max_idx << '\n';
     }
 }
