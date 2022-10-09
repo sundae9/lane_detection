@@ -101,7 +101,7 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         // 직선 필터링... (임시)
         double m = getInclination(p1, p2);
-        if (abs(m) < 0.1) {
+        if (abs(m) < 0.3) {
             line(frame, p1, p2, Scalar(0, 0, 255), 1, 8);
             continue;
         }
@@ -163,8 +163,8 @@ void videoHandler(const string &file_name) {
     }
 
     Mat frame, resized_frame;
-    double fps = video.get(CAP_PROP_FPS);
-    int delay = cvRound(1000 / fps);
+//    double fps = video.get(CAP_PROP_FPS);
+//    int delay = cvRound(1000 / fps);
     int idx = 0;
 
     while (true) {
@@ -176,9 +176,7 @@ void videoHandler(const string &file_name) {
         resize(frame, resized_frame, Size(640, 480));
 
         test(frame);
-        waitKey(delay);
 //        cout << idx++ << ' ';
-//        if (idx == 10) break;
     }
 //    cout << '\n';
 
