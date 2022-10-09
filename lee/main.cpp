@@ -38,7 +38,7 @@ int main()
     vector<Vec4i> lines, filtered_lines;
     double fps;
     string filepath = "./src/video/";
-    string filename = "복잡한 노면 +.밤길 + 바로 앞에 차.avi";
+    string filename = "복잡한 노면 + 밤길 + 바로 앞에 차.avi";
 
     cap.open(filepath + filename, CAP_ANY);
 
