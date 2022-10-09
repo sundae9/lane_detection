@@ -1,5 +1,7 @@
 #include <iostream>
+#include <algorithm>
 #include "opencv2/opencv.hpp"
+#include "header/timeRecord.hpp"
 
 using namespace std;
 using namespace cv;
@@ -7,8 +9,10 @@ using namespace cv;
 
 const string SRC_PREFIX = "../video/";
 
-vector<Point> polygon(4);
-Mat sampleImage;
+vector<Point> roi_polygon(4);
+Mat sampleImage;    // to draw roi polygon
+
+timeLapse tl = timeLapse({"thresholding", "roi", "canny", "hough line", "draw line"});
 
 // 공통 함수
 void showImage(const string &label, InputArray img, int t = 0) {
@@ -36,19 +40,19 @@ void thresholdDefault(InputArray frame, OutputArray result, int thresh = 130) {
 void applyStaticROI(InputArray frame, OutputArray result) {
     // 사다리꼴 영역 설정
     int row = frame.rows(), col = frame.cols();
-//    std::vector<Point> polygon = {
+//    std::vector<Point> roi_polygon = {
 //            Point(0, row),
 //            Point(col / 5 * 2, row / 2),
 //            Point(col / 4 * 3, row / 2),
 //            Point(col, row)
 //    };
-//    std::vector<Point> polygon = {
+//    std::vector<Point> roi_polygon = {
 //            Point(50, 270),
 //            Point(220, 160),
 //            Point(360, 160),
 //            Point(480, 270)
 //    };
-//    polygon = {
+//    roi_polygon = {
 //            Point(50, 270),
 //            Point(220, 160),
 //            Point(360, 160),
@@ -56,7 +60,7 @@ void applyStaticROI(InputArray frame, OutputArray result) {
 //    };
 
     Mat roi = Mat::zeros(row, col, CV_8U);
-    fillConvexPoly(roi, polygon, 255);
+    fillPoly(roi, roi_polygon, 255);
     bitwise_and(frame, roi, result);
 }
 
@@ -65,7 +69,7 @@ void onMouse(int event, int x, int y, int flag, void *userdata) {
     if (event == EVENT_LBUTTONDOWN) {
         if (cnt == 4) return;
         cout << x << ' ' << y << '\n';
-        polygon[cnt++] = Point(x, y);
+        roi_polygon[cnt++] = Point(x, y);
 
         circle(sampleImage, Point(x, y), 3, Scalar(0, 0, 255), -1);
         imshow("sample", sampleImage);
@@ -97,7 +101,7 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         // 직선 필터링... (임시)
         double m = getInclination(p1, p2);
-        if (abs(m) < 0.1) {
+        if (abs(m) < 0.3) {
             line(frame, p1, p2, Scalar(0, 0, 255), 1, 8);
             continue;
         }
@@ -123,59 +127,60 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
 void houghLineSegments(InputArray frame, InputOutputArray result) {
     Mat edge;
     Canny(frame, edge, 50, 150);
+    tl.setCheckpoint(3);
 //    showImage("edge", edge);
     std::vector<Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 0, 100, 200);
+    tl.setCheckpoint(4);
     drawLines(result, lines);
 }
 
 void test(InputArray frame) {
     Mat grayscaled, roi;
     Mat result = frame.getMat().clone();
-//    showImage("img", frame);
+//    timeLapse tl = timeLapse({"thresholding", "roi", "hough line"});
+
+    tl.setCheckpoint(0);
     thresholdDefault(frame, grayscaled);
+    tl.setCheckpoint(1);
+
 //    showImage("grayscaled", grayscaled);
     applyStaticROI(grayscaled, roi);
+    tl.setCheckpoint(2);
 //    showImage("roi", roi);
     houghLineSegments(roi, result);
+    tl.stop(4);
 //    showImage("result", result);
 //    destroyAllWindows();
 }
 
 void videoHandler(const string &file_name) {
-    VideoCapture capture(file_name);
+    VideoCapture video(file_name);
 
-    Mat frame, resized_frame;
-
-    if (!capture.isOpened()) {
+    if (!video.isOpened()) {
         cout << "Can't open video\n";
         return;
     }
-    TickMeter tm;
-    tm.reset();
-    vector<double> time_record;
+
+    Mat frame;
+//    double fps = video.get(CAP_PROP_FPS);
+//    int delay = cvRound(1000 / fps);
+    int idx = 0;
+
     while (true) {
-        tm.reset();
-        tm.start();
-        capture >> frame;
+        video >> frame;
 
         if (frame.empty()) {
             break;
         }
-        resize(frame, resized_frame, Size(640, 480));
+//        resize(frame, resized_frame, Size(640, 480));
 
         test(frame);
-        tm.stop();
-        time_record.push_back(tm.getTimeMilli());
+//        cout << idx++ << ' ';
     }
-    cout << "min: " << *std::min_element(time_record.begin(), time_record.end()) << "ms\n";
-    cout << "max: " << *std::max_element(time_record.begin(), time_record.end()) << "ms\n";
-    double total = 0;
-    for (int i = 1; i < time_record.size(); i++) {
-        total += time_record[i];
-    }
-    cout << total / (double) (time_record.size() - 1) << "ms\n";
+//    cout << '\n';
 
+    video.release();
 }
 
 void imageHandler(const string &file_name) {
@@ -191,7 +196,7 @@ void imageHandler(const string &file_name) {
 
 int main() {
     vector<string> file_list;
-    glob(SRC_PREFIX + "bright.avi", file_list);
+    glob(SRC_PREFIX + "2.avi", file_list);
 
     if (file_list.empty()) {
         cout << "can't find image list\n";
@@ -199,18 +204,17 @@ int main() {
     }
 //    VideoCapture cap(file_list[0]);
 //    cap >> sampleImage;
-//    cout << sampleImage.cols << ' ' << sampleImage.rows;
 
 //    setPolygon();
 //    cap.release();
-    polygon = {{839 / 3,  637 / 3},
-               {554 / 3,  854 / 3},
-               {1278 / 3, 816 / 3},
-               {1025 / 3, 623 / 3}};
+    roi_polygon = {{275, 195},
+                   {187, 284},
+                   {461, 284},
+                   {342, 195}};
     for (string &file_name: file_list) {
 //        imageHandler(file_name);
         videoHandler(file_name);
-        break;
+        tl.print();
     }
 
     return 0;
