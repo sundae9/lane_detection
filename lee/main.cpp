@@ -99,8 +99,8 @@ int main()
     Mat binarization, edge, dst, closed_edge;
     vector<Vec4i> lines, filtered_lines;
     double fps;
-    string filepath = "./";
-    string filename = "2.avi";
+    string filepath = "src/";
+    string filename = "실선 + 음영 + 노면표시.avi";
 
     Video_info *video_info = (Video_info *)calloc(sizeof(Video_info), 1);
     int idx = 0;
@@ -200,19 +200,19 @@ int main()
         line(dst, Point(320, 0), Point(320, 360), Scalar(0, 255, 0), 2, LINE_AA);
         Time_record(tm, video_info, idx++);
 
-        // imshow("original", frame);
-        // imshow("dst", dst);
-        // imshow("binarization", binarization);
-        // // imshow("closed_edge", closed_edge);
+        imshow("original", frame);
+        imshow("dst", dst);
+        imshow("binarization", binarization);
+        // imshow("closed_edge", closed_edge);
 
-        // resizeWindow("original", w, h);
-        // resizeWindow("dst", w, h);
-        // resizeWindow("binarization", w, h);
-        // // resizeWindow("closed_edge", w, h);
+        resizeWindow("original", w, h);
+        resizeWindow("dst", w, h);
+        resizeWindow("binarization", w, h);
+        // resizeWindow("closed_edge", w, h);
 
-        // moveWindow("dst", w, 0);
-        // moveWindow("binarization", 0, h);
-        // // moveWindow("closed_edge", w, h);
+        moveWindow("dst", w, 0);
+        moveWindow("binarization", 0, h);
+        // moveWindow("closed_edge", w, h);
 
         Time_record(tm2, video_info, idx++);
 
@@ -220,9 +220,6 @@ int main()
         double ms = (t2 - t1) * 1000 / getTickFrequency();
 
         tm.stop();
-
-        if (video_info->frame_info.total_frame >= 10)
-            break;
 
         if (waitKey(delay) > 0)
         {

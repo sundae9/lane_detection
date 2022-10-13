@@ -1,17 +1,17 @@
 # src ( image, video, etc.. )
-/lee/src/
-/lee/test.csv
-/lee/tmp.png
-/lee/video
+/src/
+/test.csv
+/tmp.png
+/video
 
 # main ( executable file )
-/lee/main
+/main
 
 # syntax test, ability test
 /test.cpp
 
 # etc
-/lee/CMakeLists.txt
+/CMakeLists.txt
 cmake-build-debug
 .vscode
 .idea
