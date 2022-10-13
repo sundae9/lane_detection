@@ -36,7 +36,7 @@ struct
 /**
  * @brief 초기화하는 함수 (min: 1000, max: -1)
  */
-void Initialize_Video_info(Video_info& vi){
+void Initialize_Video_info(Video_info &vi) {
     for (int i = 0; i < PROC_SIZE; i++) {
         vi.time_info.min_time[i] = 1000;
         vi.time_info.max_time[i] = -1;
@@ -91,7 +91,7 @@ void Print_info(Video_info &video_info, int idx) {
 }
 
 /**
- * @breif 기록한 정보 출력하는 함수 -> csv 전환용
+ * @brief 기록한 정보 출력하는 함수 -> csv 전환용
  * @param Video_info 영상 처리 정보
  * @param cnt 전체 프로세스 수!! (인덱스 X)
  */
