@@ -6,4 +6,4 @@ do
 	echo "tc $var completed"
 done
 
-python3 make_csv.py
+echo $1 | python3 make_csv.py

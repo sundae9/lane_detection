@@ -33,8 +33,10 @@ def get_content(file_list):
 
     return content
 
-def write_csv(content, file_path):
-    tc = len(file_list)
+def write_csv(content, file_path, tc):
+    """
+    csv 작성하는 함수
+    """
     file =  open(file_path, 'w')
     file.write(", ," + ','.join(process) + "\n")
     for i in range(len(item)):
@@ -48,7 +50,8 @@ def write_csv(content, file_path):
     return
 
 if __name__ == "__main__":
-    file_list = glob(SRC)
+    tc = int(input())
+    file_list = glob(SRC)[:tc]
     content = get_content(file_list)
     print(len(content))
-    write_csv(content, DST_PREFIX+file_name)
+    write_csv(content, DST_PREFIX+file_name, tc)
