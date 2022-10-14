@@ -54,6 +54,7 @@ int main()
     string filename = "실선 + 음영 + 노면표시.avi";
 
     Video_info vi;
+    Initialize_Video_info(vi);
     int idx = 0;
 
     cap.open(filepath + filename, CAP_ANY);
