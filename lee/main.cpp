@@ -1,4 +1,5 @@
 #include <iostream>
+#include "../common/timer.cpp"
 #include <opencv2/opencv.hpp>
 
 using namespace std;
@@ -39,56 +40,6 @@ void info_mat(Mat mat)
     cout << "channels : " << mat.channels() << endl;
 }
 
-struct
-{
-    double min_time[proc_size];
-    double max_time[proc_size];
-    double total_time[proc_size];
-} typedef Time_info;
-
-struct
-{
-    int min_frame[proc_size];
-    int max_frame[proc_size];
-    int total_frame;
-} typedef Frame_info;
-
-struct
-{
-    Time_info time_info;
-    Frame_info frame_info;
-} typedef Video_info;
-
-void Time_record(TickMeter &tm, Video_info *video_info, int idx)
-{
-    tm.stop();
-    double cur_time = tm.getTimeMilli();
-
-    if (video_info->frame_info.total_frame != 1 && video_info->time_info.max_time[idx] < cur_time)
-    {
-        video_info->time_info.max_time[idx] = cur_time;
-        video_info->frame_info.max_frame[idx] = video_info->frame_info.total_frame;
-    }
-
-    if (video_info->time_info.min_time[idx] > cur_time)
-    {
-        video_info->time_info.min_time[idx] = cur_time;
-        video_info->frame_info.min_frame[idx] = video_info->frame_info.total_frame;
-    }
-
-    video_info->time_info.total_time[idx] += tm.getTimeMilli();
-    tm.reset();
-    tm.start();
-}
-
-void Pirnt_info(Video_info *video_info, int idx)
-{
-    cout << idx << ",";
-    cout << video_info->time_info.min_time[idx] << "," << video_info->frame_info.min_frame[idx] << ",";
-    cout << video_info->time_info.max_time[idx] << "," << video_info->frame_info.max_frame[idx] << ",";
-    cout << video_info->time_info.total_time[idx] / video_info->frame_info.total_frame << "," << endl;
-}
-
 int main()
 {
     VideoCapture cap;
@@ -102,7 +53,7 @@ int main()
     string filepath = "src/";
     string filename = "실선 + 음영 + 노면표시.avi";
 
-    Video_info *video_info = (Video_info *)calloc(sizeof(Video_info), 1);
+    Video_info vi;
     int idx = 0;
 
     cap.open(filepath + filename, CAP_ANY);
@@ -129,17 +80,17 @@ int main()
     fillPoly(mask, pts, Scalar(255), LINE_AA);
     mask = ~mask;
     double total;
-    video_info->frame_info.total_frame = 0;
+    vi.total_frame = 0;
     for (int i = 0; i < 20; i++)
     {
-        video_info->time_info.min_time[i] = 100;
+        vi.time_info.min_time[i] = 100;
     }
 
     while (true)
     {
         long t1 = getTickCount();
 
-        video_info->frame_info.total_frame += 1;
+        vi.total_frame += 1;
 
         cap >> frame;
         if (frame.empty())
@@ -150,22 +101,22 @@ int main()
         tm2.reset();
         tm2.start();
         // resize(frame, resize_frame, Size(w, h));
-        // Time_record(tm, video_info, idx++);
+        // Time_record(tm, vi, idx++);
 
         cvtColor(frame, gray_frame, COLOR_BGR2GRAY); // 3채널 -> 1채널
-        Time_record(tm, video_info, idx++);
+        Time_record(tm, vi, idx++);
 
         adaptiveThreshold(gray_frame, binarization, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 3, 3); // 이진화
-        Time_record(tm, video_info, idx++);
+        Time_record(tm, vi, idx++);
 
         binarization.setTo(Scalar(0), mask); // 마스킹
-        Time_record(tm, video_info, idx++);
+        Time_record(tm, vi, idx++);
 
         Canny(binarization, edge, 50, 150, 7); // 에지 검출
-        Time_record(tm, video_info, idx++);
+        Time_record(tm, vi, idx++);
         // morphologyEx(edge, closed_edge, MORPH_OPEN, Mat());         // 모폴로지 닫기 연산
         HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 10, 5); // 직선 검출
-        Time_record(tm, video_info, idx++);
+        Time_record(tm, vi, idx++);
 
         filtered_lines.clear();
 
@@ -176,7 +127,7 @@ int main()
                 filtered_lines.push_back(l);
             }
         }
-        Time_record(tm, video_info, idx++);
+        Time_record(tm, vi, idx++);
 
         lines = filtered_lines;
         filtered_lines.clear();
@@ -188,7 +139,7 @@ int main()
                 filtered_lines.push_back(l);
             }
         }
-        Time_record(tm, video_info, idx++);
+        Time_record(tm, vi, idx++);
 
         dst = frame.clone();
 
@@ -198,7 +149,7 @@ int main()
         }
 
         line(dst, Point(320, 0), Point(320, 360), Scalar(0, 255, 0), 2, LINE_AA);
-        Time_record(tm, video_info, idx++);
+        Time_record(tm, vi, idx++);
 
         imshow("original", frame);
         imshow("dst", dst);
@@ -214,12 +165,12 @@ int main()
         moveWindow("binarization", 0, h);
         // moveWindow("closed_edge", w, h);
 
-        Time_record(tm2, video_info, idx++);
-
-        long t2 = getTickCount();
-        double ms = (t2 - t1) * 1000 / getTickFrequency();
+        Time_record(tm2, vi, idx++);
 
         tm.stop();
+
+        if (vi.total_frame >= 20)
+            break;
 
         if (waitKey(delay) > 0)
         {
@@ -230,11 +181,8 @@ int main()
 
     destroyAllWindows();
 
-    for (int i = 0; i < idx; i++)
-    {
-        Pirnt_info(video_info, i);
-    }
-    cout << "total frame : " << video_info->frame_info.total_frame << endl;
+    Print_info_all(vi, idx);
+    cout << "total frame : " << vi.total_frame << endl;
 
     return 0;
 }
