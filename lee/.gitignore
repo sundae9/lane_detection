@@ -16,8 +16,5 @@ cmake-build-debug
 .idea
 .DS_Store
 /result
-/build
-*.avi
 
-!/build/make_csv.py
-!/build/test.sh
+*.avi
