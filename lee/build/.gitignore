@@ -1,0 +1,5 @@
+*
+
+!.gitignore
+!test.sh
+!make_csv.py
