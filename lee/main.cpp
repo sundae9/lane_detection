@@ -40,7 +40,7 @@ void info_mat(Mat mat)
     cout << "channels : " << mat.channels() << endl;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     VideoCapture cap;
     int w, h;
@@ -50,11 +50,11 @@ int main()
     Mat binarization, edge, dst, closed_edge;
     vector<Vec4i> lines, filtered_lines;
     double fps;
-    string filepath = "src/";
-    string filename = "실선 + 음영 + 노면표시.avi";
+    string filepath = "./";
+    string filename = "3.avi";
 
     Video_info vi;
-    Initialize_Video_info(vi);
+    Initialize_Video_info(vi, atoi(argv[1]));
     int idx = 0;
 
     cap.open(filepath + filename, CAP_ANY);
@@ -94,6 +94,8 @@ int main()
         vi.total_frame += 1;
 
         cap >> frame;
+        vi.prev_img = frame.clone();
+
         if (frame.empty())
             break;
         idx = 0;
@@ -101,23 +103,23 @@ int main()
         tm.start();
         tm2.reset();
         tm2.start();
-        // resize(frame, resize_frame, Size(w, h));
-        // Time_record(tm, vi, idx++);
+
+        Time_record(tm, vi, idx++, frame);
 
         cvtColor(frame, gray_frame, COLOR_BGR2GRAY); // 3채널 -> 1채널
-        Time_record(tm, vi, idx++);
+        Time_record(tm, vi, idx++, gray_frame);
 
         adaptiveThreshold(gray_frame, binarization, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 3, 3); // 이진화
-        Time_record(tm, vi, idx++);
+        Time_record(tm, vi, idx++, binarization);
 
         binarization.setTo(Scalar(0), mask); // 마스킹
-        Time_record(tm, vi, idx++);
+        Time_record(tm, vi, idx++, binarization);
 
         Canny(binarization, edge, 50, 150, 7); // 에지 검출
-        Time_record(tm, vi, idx++);
+        Time_record(tm, vi, idx++, edge);
         // morphologyEx(edge, closed_edge, MORPH_OPEN, Mat());         // 모폴로지 닫기 연산
         HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 10, 5); // 직선 검출
-        Time_record(tm, vi, idx++);
+        Time_record(tm, vi, idx++, edge);
 
         filtered_lines.clear();
 
@@ -128,7 +130,7 @@ int main()
                 filtered_lines.push_back(l);
             }
         }
-        Time_record(tm, vi, idx++);
+        Time_record(tm, vi, idx++, edge);
 
         lines = filtered_lines;
         filtered_lines.clear();
@@ -140,7 +142,7 @@ int main()
                 filtered_lines.push_back(l);
             }
         }
-        Time_record(tm, vi, idx++);
+        Time_record(tm, vi, idx++, edge);
 
         dst = frame.clone();
 
@@ -150,28 +152,25 @@ int main()
         }
 
         line(dst, Point(320, 0), Point(320, 360), Scalar(0, 255, 0), 2, LINE_AA);
-        Time_record(tm, vi, idx++);
+        Time_record(tm, vi, idx++, dst);
 
-        imshow("original", frame);
-        imshow("dst", dst);
-        imshow("binarization", binarization);
-        // imshow("closed_edge", closed_edge);
+        // imshow("original", frame);
+        // imshow("dst", dst);
+        // imshow("binarization", binarization);
+        // // imshow("closed_edge", closed_edge);
 
-        resizeWindow("original", w, h);
-        resizeWindow("dst", w, h);
-        resizeWindow("binarization", w, h);
-        // resizeWindow("closed_edge", w, h);
+        // resizeWindow("original", w, h);
+        // resizeWindow("dst", w, h);
+        // resizeWindow("binarization", w, h);
+        // // resizeWindow("closed_edge", w, h);
 
-        moveWindow("dst", w, 0);
-        moveWindow("binarization", 0, h);
+        // moveWindow("dst", w, 0);
+        // moveWindow("binarization", 0, h);
         // moveWindow("closed_edge", w, h);
 
-        Time_record(tm2, vi, idx++);
+        Time_record(tm2, vi, idx++, dst);
 
         tm.stop();
-
-        if (vi.total_frame >= 20)
-            break;
 
         if (waitKey(delay) > 0)
         {
@@ -180,7 +179,7 @@ int main()
         }
     }
 
-    destroyAllWindows();
+    // destroyAllWindows();
 
     Print_info_all(vi, idx);
     cout << "total frame : " << vi.total_frame << endl;
