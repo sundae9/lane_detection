@@ -1,7 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include "opencv2/opencv.hpp"
-#include "header/timeRecord.hpp"
+#include "../common/timer.cpp"
 
 using namespace std;
 using namespace cv;
@@ -9,10 +9,7 @@ using namespace cv;
 
 const string SRC_PREFIX = "../video/";
 
-vector<Point> roi_polygon(4);
-Mat sampleImage;    // to draw roi polygon
-
-timeLapse tl = timeLapse({"thresholding", "roi", "canny", "hough line", "draw line"});
+vector <Point> roi_polygon(4);
 
 // 공통 함수
 void showImage(const string &label, InputArray img, int t = 0) {
@@ -40,63 +37,17 @@ void thresholdDefault(InputArray frame, OutputArray result, int thresh = 130) {
 void applyStaticROI(InputArray frame, OutputArray result) {
     // 사다리꼴 영역 설정
     int row = frame.rows(), col = frame.cols();
-//    std::vector<Point> roi_polygon = {
-//            Point(0, row),
-//            Point(col / 5 * 2, row / 2),
-//            Point(col / 4 * 3, row / 2),
-//            Point(col, row)
-//    };
-//    std::vector<Point> roi_polygon = {
-//            Point(50, 270),
-//            Point(220, 160),
-//            Point(360, 160),
-//            Point(480, 270)
-//    };
-//    roi_polygon = {
-//            Point(50, 270),
-//            Point(220, 160),
-//            Point(360, 160),
-//            Point(480, 270)
-//    };
-
     Mat roi = Mat::zeros(row, col, CV_8U);
     fillPoly(roi, roi_polygon, 255);
     bitwise_and(frame, roi, result);
 }
 
-void onMouse(int event, int x, int y, int flag, void *userdata) {
-    static int cnt = 0;
-    if (event == EVENT_LBUTTONDOWN) {
-        if (cnt == 4) return;
-        cout << x << ' ' << y << '\n';
-        roi_polygon[cnt++] = Point(x, y);
-
-        circle(sampleImage, Point(x, y), 3, Scalar(0, 0, 255), -1);
-        imshow("sample", sampleImage);
-    }
-}
-
-// 임시
-void setPolygon() {
-    if (sampleImage.empty()) {
-        cout << "Can't open sample image\n";
-        return;
-    }
-    namedWindow("sample");
-    moveWindow("sample", 0, 0);
-    setMouseCallback("sample", onMouse);
-    imshow("sample", sampleImage);
-    waitKey();
-    destroyAllWindows();
-}
-
 // 차선 검출 단계
-void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
-    int center = 290;
+void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines) {
     Scalar color(255, 0, 0);
     double left_max = 0, right_max = 0;
-    std::vector<std::pair<Point, Point>> lane(2, {{0, 0},
-                                                  {0, 0}});
+    std::vector <std::pair<Point, Point>> lane(2, {{0, 0},
+                                                   {0, 0}});
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         // 직선 필터링... (임시)
@@ -127,29 +78,53 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
 void houghLineSegments(InputArray frame, InputOutputArray result) {
     Mat edge;
     Canny(frame, edge, 50, 150);
-    tl.setCheckpoint(3);
 //    showImage("edge", edge);
-    std::vector<Vec4i> lines;
+    std::vector <Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 0, 100, 200);
-    tl.setCheckpoint(4);
     drawLines(result, lines);
 }
 
-void test(InputArray frame) {
-    Mat grayscaled, roi;
-    Mat result = frame.getMat().clone();
-//    timeLapse tl = timeLapse({"thresholding", "roi", "hough line"});
+void test(InputArray frame, Video_info &vi) {
 
-    tl.setCheckpoint(0);
-    thresholdDefault(frame, grayscaled);
-    tl.setCheckpoint(1);
-
+    TickMeter tm, tm2;
+    int idx = 0;
+    tm.reset();
+    tm2.reset();
+    tm.start();
+    tm2.start();
+    // 0. to grayscale
+    Mat grayscaled;
+    cvtColor(frame, grayscaled, COLOR_BGR2GRAY);
+    Time_record(tm, vi, idx++);
+    // 1. 주어진 임계값(default:130)으로 이진화
+    threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
+    Time_record(tm, vi, idx++);
 //    showImage("grayscaled", grayscaled);
+
+    // 2. apply roi
+    Mat roi;
     applyStaticROI(grayscaled, roi);
-    tl.setCheckpoint(2);
+    Time_record(tm, vi, idx++);
 //    showImage("roi", roi);
-    houghLineSegments(roi, result);
-    tl.stop(4);
+
+    // 3. canny
+    Mat edge;
+    Canny(roi, edge, 50, 150);
+    Time_record(tm, vi, idx++);
+//    showImage("edge", edge);
+
+    // 4. hough line
+    std::vector <Vec4i> lines;
+    HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
+    Time_record(tm, vi, idx++);
+
+    //5. filter lines
+    Mat result = frame.getMat().clone();
+    drawLines(result, lines);
+    Time_record(tm, vi, idx++);
+    //6. total
+    Time_record(tm2, vi, idx++);
+
 //    showImage("result", result);
 //    destroyAllWindows();
 }
@@ -163,9 +138,8 @@ void videoHandler(const string &file_name) {
     }
 
     Mat frame;
-//    double fps = video.get(CAP_PROP_FPS);
-//    int delay = cvRound(1000 / fps);
-    int idx = 0;
+    Video_info vi;
+    Initialize_Video_info(vi);
 
     while (true) {
         video >> frame;
@@ -173,14 +147,12 @@ void videoHandler(const string &file_name) {
         if (frame.empty()) {
             break;
         }
-//        resize(frame, resized_frame, Size(640, 480));
-
-        test(frame);
-//        cout << idx++ << ' ';
+        vi.total_frame++;
+        test(frame, vi);
     }
-//    cout << '\n';
 
     video.release();
+    Print_info_all(vi, 7);
 }
 
 void imageHandler(const string &file_name) {
@@ -190,31 +162,28 @@ void imageHandler(const string &file_name) {
         return;
     }
 
-    test(frame);
-    destroyAllWindows();
+//    test(frame);
+//    destroyAllWindows();
 }
 
 int main() {
-    vector<string> file_list;
+    vector <string> file_list;
     glob(SRC_PREFIX + "2.avi", file_list);
 
     if (file_list.empty()) {
         cout << "can't find image list\n";
         return 1;
     }
-//    VideoCapture cap(file_list[0]);
-//    cap >> sampleImage;
 
-//    setPolygon();
-//    cap.release();
     roi_polygon = {{275, 195},
                    {187, 284},
                    {461, 284},
                    {342, 195}};
+
     for (string &file_name: file_list) {
 //        imageHandler(file_name);
         videoHandler(file_name);
-        tl.print();
+
     }
 
     return 0;

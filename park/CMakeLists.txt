@@ -8,7 +8,6 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(park
         main.cpp
-        #        videoPlayer.cpp
-        timeRecord.cpp header/timeRecord.hpp)
+        )
 
 target_link_libraries(park ${OpenCV_LIBS})
