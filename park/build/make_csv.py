@@ -13,7 +13,7 @@ DST_PREFIX = "../result/"
 file_name = dt.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + ".csv"
 
 # 출력 결과 txt
-SRC = "../result/tmp/*"
+SRC = "../result/tmp/test*"
 
 
 # ==============================
@@ -55,7 +55,7 @@ def write_csv(content, file_path, tc):
 
 if __name__ == "__main__":
     tc = int(input())
-    file_list = glob(SRC)[:tc]
+    file_list = sorted(glob(SRC))[:tc]
     content = get_content(file_list)
-    print(len(content))
+
     write_csv(content, DST_PREFIX + file_name, tc)

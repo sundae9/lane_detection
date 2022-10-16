@@ -95,41 +95,41 @@ void test(InputArray frame, Video_info &vi) {
     // 0. to grayscale
     Mat grayscaled;
     cvtColor(frame, grayscaled, COLOR_BGR2GRAY);
-    Time_record(tm, vi, idx++);
+    Time_record(tm, vi, idx++, grayscaled);
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
-    Time_record(tm, vi, idx++);
+    Time_record(tm, vi, idx++, grayscaled);
 //    showImage("grayscaled", grayscaled);
 
     // 2. apply roi
     Mat roi;
     applyStaticROI(grayscaled, roi);
-    Time_record(tm, vi, idx++);
+    Time_record(tm, vi, idx++, roi);
 //    showImage("roi", roi);
 
     // 3. canny
     Mat edge;
     Canny(roi, edge, 50, 150);
-    Time_record(tm, vi, idx++);
+    Time_record(tm, vi, idx++, edge);
 //    showImage("edge", edge);
 
     // 4. hough line
     std::vector <Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
-    Time_record(tm, vi, idx++);
+    Time_record(tm, vi, idx++, edge);
 
     //5. filter lines
     Mat result = frame.getMat().clone();
     drawLines(result, lines);
-    Time_record(tm, vi, idx++);
+    Time_record(tm, vi, idx++, result);
     //6. total
-    Time_record(tm2, vi, idx++);
+    Time_record(tm2, vi, idx++, result);
 
 //    showImage("result", result);
 //    destroyAllWindows();
 }
 
-void videoHandler(const string &file_name) {
+void videoHandler(const string &file_name, int tc) {
     VideoCapture video(file_name);
 
     if (!video.isOpened()) {
@@ -139,7 +139,7 @@ void videoHandler(const string &file_name) {
 
     Mat frame;
     Video_info vi;
-    Initialize_Video_info(vi);
+    Initialize_Video_info(vi, tc);
 
     while (true) {
         video >> frame;
@@ -148,6 +148,7 @@ void videoHandler(const string &file_name) {
             break;
         }
         vi.total_frame++;
+        vi.prev_img = frame.clone();
         test(frame, vi);
     }
 
@@ -166,7 +167,7 @@ void imageHandler(const string &file_name) {
 //    destroyAllWindows();
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     vector <string> file_list;
     glob(SRC_PREFIX + "2.avi", file_list);
 
@@ -182,7 +183,7 @@ int main() {
 
     for (string &file_name: file_list) {
 //        imageHandler(file_name);
-        videoHandler(file_name);
+        videoHandler(file_name, atoi(argv[1]));
 
     }
 

@@ -2,7 +2,8 @@
 
 for ((var=0; var < $1; var++));
 do
-	./park > ../result/tmp/test$var.txt
+	mkdir ../result/tmp/$var
+	./park $var > ../result/tmp/test$var.txt
 	echo "tc $var completed"
 done
 
