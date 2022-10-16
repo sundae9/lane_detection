@@ -6,7 +6,6 @@
 using namespace std;
 using namespace cv;
 
-
 const string SRC_PREFIX = "../video/";
 
 vector <Point> roi_polygon(4);
@@ -42,37 +41,50 @@ void applyStaticROI(InputArray frame, OutputArray result) {
     bitwise_and(frame, roi, result);
 }
 
-// 차선 검출 단계
-void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines) {
-    Scalar color(255, 0, 0);
+/**
+ * 프레임에 선분 그리는 함수
+ * @param frame 배경 프레임 (원본)
+ * @param lines 그릴 선분들
+ * @param color 색
+ */
+void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
+    for (Vec4i pts: lines) {
+        Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
+        line(frame, p1, p2, color, 1, 8);
+    }
+}
+
+/**
+ * 허프 변환으로 검출된 선들을 필터링해서 그리는 함수
+ * @param frame
+ * @param lines
+ */
+void filterLines(InputOutputArray frame, const std::vector <Vec4i> &lines) {
     double left_max = 0, right_max = 0;
-    std::vector <std::pair<Point, Point>> lane(2, {{0, 0},
-                                                   {0, 0}});
+    std::vector <Vec4i> lane(2);
+
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         // 직선 필터링... (임시)
         double m = getInclination(p1, p2);
         if (abs(m) < 0.3) {
-            line(frame, p1, p2, Scalar(0, 0, 255), 1, 8);
+            drawLines(frame, {pts}, Scalar(0, 0, 255));
             continue;
         }
         if (m > 0) {
             if (m > left_max) {
                 left_max = m;
-                lane[0] = {p1, p2};
+                lane[0] = pts;
             }
         } else {
             if (m < right_max) {
                 right_max = m;
-                lane[1] = {p1, p2};
+                lane[1] = pts;
             }
         }
-
-        line(frame, p1, p2, Scalar(0, 255, 0), 1, 8);
+        drawLines(frame, {pts});
     }
-    for (int i = 0; i < 2; i++) {
-        line(frame, lane[i].first, lane[i].second, color, 3, 8);
-    }
+    drawLines(frame, lane, Scalar(255, 0, 0));
 }
 
 void houghLineSegments(InputArray frame, InputOutputArray result) {
@@ -116,11 +128,14 @@ void test(InputArray frame, Video_info &vi) {
     // 4. hough line
     std::vector <Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
-    Time_record(tm, vi, idx++, edge);
+    tm.stop();
+    Mat preview_lines = frame.getMat().clone();
+    drawLines(preview_lines, lines);
+    Time_record(tm, vi, idx++, preview_lines);
 
     //5. filter lines
     Mat result = frame.getMat().clone();
-    drawLines(result, lines);
+    filterLines(result, lines);
     Time_record(tm, vi, idx++, result);
     //6. total
     Time_record(tm2, vi, idx++, result);
