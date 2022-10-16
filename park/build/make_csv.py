@@ -1,12 +1,12 @@
 import datetime as dt
 from glob import glob
 
-#============================== 
+# ==============================
 # 직접 작성하는 부분
 # 측정 항목
 item = ["min (ms)", "min-frame-idx", "max (ms)", "max-frame-idx", "avg"]
 # 프로세스 이름
-process=["thresholding", "roi", "line", "total"]
+process = ["grayscale", "binarization", "roi", "canny", "houghline", "filter line", "total"]
 
 # 저장 경로
 DST_PREFIX = "../result/"
@@ -14,7 +14,9 @@ file_name = dt.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + ".csv"
 
 # 출력 결과 txt
 SRC = "../result/tmp/*"
-#==============================
+
+
+# ==============================
 
 def get_content(file_list):
     """
@@ -33,25 +35,27 @@ def get_content(file_list):
 
     return content
 
+
 def write_csv(content, file_path, tc):
     """
     csv 작성하는 함수
     """
-    file =  open(file_path, 'w')
+    file = open(file_path, 'w')
     file.write(", ," + ','.join(process) + "\n")
     for i in range(len(item)):
         file.write(item[i])
         for j in range(tc):
-            file.write(",#{},".format(j+1)+','.join(content[j][i+1])+'\n')
+            file.write(",#{},".format(j + 1) + ','.join(content[j][i + 1]) + '\n')
         file.write('\n\n')
     file.close()
 
     print("file {} saved".format(file_name))
     return
 
+
 if __name__ == "__main__":
     tc = int(input())
     file_list = glob(SRC)[:tc]
     content = get_content(file_list)
     print(len(content))
-    write_csv(content, DST_PREFIX+file_name, tc)
+    write_csv(content, DST_PREFIX + file_name, tc)
