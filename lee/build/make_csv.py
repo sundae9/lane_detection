@@ -6,7 +6,7 @@ from glob import glob
 # 측정 항목
 item = ["min (ms)", "min-frame-idx", "max (ms)", "max-frame-idx", "avg"]
 # 프로세스 이름
-process=["1", "2", "3", "4", "5","6","7","8", "9","10"]
+process=["1", "2", "3", "4", "5","6","7","8", "9"]
 
 # 저장 경로
 DST_PREFIX = "../result/"
