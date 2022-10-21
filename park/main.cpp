@@ -107,6 +107,7 @@ void houghLineSegments(InputArray frame, InputOutputArray result) {
 void test(InputArray frame) {
 #ifdef TEST
     int idx = 0;
+    vi.start_timer();
 #endif
     // 0. to grayscale
     Mat grayscaled;

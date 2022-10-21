@@ -61,6 +61,8 @@ public:
     void print_info_all();
 
     void stop_timer();
+
+    void start_timer();
 };
 
 /**
@@ -145,4 +147,11 @@ void Video_info::print_info_all() {
 void Video_info::stop_timer() {
     this->tm_total.stop();
     this->tm_proc.stop();
+}
+
+void Video_info::start_timer() {
+    this->tm_total.reset();
+    this->tm_proc.reset();
+    this->tm_total.start();
+    this->tm_proc.start();
 }
