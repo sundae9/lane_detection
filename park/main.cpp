@@ -1,14 +1,20 @@
 #include <iostream>
 #include <algorithm>
 #include "opencv2/opencv.hpp"
+
+#define TEST
+#ifdef TEST
+
 #include "../common/timer.cpp"
+
+#endif
 
 using namespace std;
 using namespace cv;
 
 const string SRC_PREFIX = "../video/";
 
-vector <Point> roi_polygon(4);
+vector<Point> roi_polygon(4);
 
 // 공통 함수
 void showImage(const string &label, InputArray img, int t = 0) {
@@ -47,7 +53,7 @@ void applyStaticROI(InputArray frame, OutputArray result) {
  * @param lines 그릴 선분들
  * @param color 색
  */
-void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
+void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         line(frame, p1, p2, color, 1, 8);
@@ -59,9 +65,9 @@ void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar 
  * @param frame
  * @param lines
  */
-void filterLines(InputOutputArray frame, const std::vector <Vec4i> &lines) {
+void filterLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
     double left_max = 0, right_max = 0;
-    std::vector <Vec4i> lane(2);
+    std::vector<Vec4i> lane(2);
 
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
@@ -91,56 +97,71 @@ void houghLineSegments(InputArray frame, InputOutputArray result) {
     Mat edge;
     Canny(frame, edge, 50, 150);
 //    showImage("edge", edge);
-    std::vector <Vec4i> lines;
+    std::vector<Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 0, 100, 200);
     drawLines(result, lines);
 }
 
 void test(InputArray frame, Video_info &vi) {
-
+#ifdef TEST
     TickMeter tm, tm2;
     int idx = 0;
     tm.reset();
     tm2.reset();
     tm.start();
     tm2.start();
+#endif
     // 0. to grayscale
     Mat grayscaled;
     cvtColor(frame, grayscaled, COLOR_BGR2GRAY);
+#ifdef TEST
     Time_record(tm, vi, idx++, grayscaled);
+#endif
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
+
+#ifdef TEST
     Time_record(tm, vi, idx++, grayscaled);
+#endif
 //    showImage("grayscaled", grayscaled);
 
     // 2. apply roi
     Mat roi;
     applyStaticROI(grayscaled, roi);
+#ifdef TEST
     Time_record(tm, vi, idx++, roi);
+#endif
 //    showImage("roi", roi);
 
     // 3. canny
     Mat edge;
     Canny(roi, edge, 50, 150);
+#ifdef TEST
     Time_record(tm, vi, idx++, edge);
+#endif
+
 //    showImage("edge", edge);
 
     // 4. hough line
-    std::vector <Vec4i> lines;
+    std::vector<Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
+#ifdef TEST
     tm.stop();
     Mat preview_lines = frame.getMat().clone();
     drawLines(preview_lines, lines);
     Time_record(tm, vi, idx++, preview_lines);
+#endif
 
     //5. filter lines
     Mat result = frame.getMat().clone();
     filterLines(result, lines);
+#ifdef TEST
     Time_record(tm, vi, idx++, result);
+
     //6. total
     Time_record(tm2, vi, idx++, result);
-
-//    showImage("result", result);
+#endif
+//    showImage("result", result, 10);
 //    destroyAllWindows();
 }
 
@@ -183,7 +204,7 @@ void imageHandler(const string &file_name) {
 }
 
 int main(int argc, char *argv[]) {
-    vector <string> file_list;
+    vector<string> file_list;
     glob(SRC_PREFIX + "2.avi", file_list);
 
     if (file_list.empty()) {
