@@ -5,7 +5,9 @@
 #define TEST
 #ifdef TEST
 
-#include "../common/timer.cpp"
+#include "../common/newTimer.cpp"
+
+Video_info vi(6);
 
 #endif
 
@@ -102,26 +104,23 @@ void houghLineSegments(InputArray frame, InputOutputArray result) {
     drawLines(result, lines);
 }
 
-void test(InputArray frame, Video_info &vi) {
+void test(InputArray frame) {
 #ifdef TEST
-    TickMeter tm, tm2;
     int idx = 0;
-    tm.reset();
-    tm2.reset();
-    tm.start();
-    tm2.start();
 #endif
     // 0. to grayscale
     Mat grayscaled;
     cvtColor(frame, grayscaled, COLOR_BGR2GRAY);
 #ifdef TEST
-    Time_record(tm, vi, idx++, grayscaled);
+    vi.proc_record(idx++, grayscaled);
+//    Time_record(tm, vi, idx++, grayscaled);
 #endif
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
 
 #ifdef TEST
-    Time_record(tm, vi, idx++, grayscaled);
+    vi.proc_record(idx++, grayscaled);
+//    Time_record(tm, vi, idx++, grayscaled);
 #endif
 //    showImage("grayscaled", grayscaled);
 
@@ -129,7 +128,8 @@ void test(InputArray frame, Video_info &vi) {
     Mat roi;
     applyStaticROI(grayscaled, roi);
 #ifdef TEST
-    Time_record(tm, vi, idx++, roi);
+//    Time_record(tm, vi, idx++, roi);
+    vi.proc_record(idx++, roi);
 #endif
 //    showImage("roi", roi);
 
@@ -137,7 +137,8 @@ void test(InputArray frame, Video_info &vi) {
     Mat edge;
     Canny(roi, edge, 50, 150);
 #ifdef TEST
-    Time_record(tm, vi, idx++, edge);
+//    Time_record(tm, vi, idx++, edge);
+    vi.proc_record(idx++, edge);
 #endif
 
 //    showImage("edge", edge);
@@ -146,20 +147,23 @@ void test(InputArray frame, Video_info &vi) {
     std::vector<Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
 #ifdef TEST
-    tm.stop();
+//    tm.stop();
+    vi.stop_timer();
     Mat preview_lines = frame.getMat().clone();
     drawLines(preview_lines, lines);
-    Time_record(tm, vi, idx++, preview_lines);
+//    Time_record(tm, vi, idx++, preview_lines);
+    vi.proc_record(idx++, preview_lines);
 #endif
 
     //5. filter lines
     Mat result = frame.getMat().clone();
     filterLines(result, lines);
 #ifdef TEST
-    Time_record(tm, vi, idx++, result);
-
+//    Time_record(tm, vi, idx++, result);
+    vi.proc_record(idx++, result);
     //6. total
-    Time_record(tm2, vi, idx++, result);
+//    Time_record(tm2, vi, idx++, result);
+    vi.total_record(result);
 #endif
 //    showImage("result", result, 10);
 //    destroyAllWindows();
@@ -174,8 +178,8 @@ void videoHandler(const string &file_name, int tc) {
     }
 
     Mat frame;
-    Video_info vi;
-    Initialize_Video_info(vi, tc);
+//    Video_info vi;
+    vi.set_tc(tc);
 
     while (true) {
         video >> frame;
@@ -185,11 +189,11 @@ void videoHandler(const string &file_name, int tc) {
         }
         vi.total_frame++;
         vi.prev_img = frame.clone();
-        test(frame, vi);
+        test(frame);
     }
 
     video.release();
-    Print_info_all(vi, 7);
+    vi.print_info_all();
 }
 
 void imageHandler(const string &file_name) {
@@ -220,7 +224,6 @@ int main(int argc, char *argv[]) {
     for (string &file_name: file_list) {
 //        imageHandler(file_name);
         videoHandler(file_name, atoi(argv[1]));
-
     }
 
     return 0;
