@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
         cvtColor(frame, gray_frame, COLOR_BGR2GRAY); // 3채널 -> 1채널
         Time_record(tm, vi, idx++, gray_frame);
 
-        adaptiveThreshold(gray_frame, binarization, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 3, 3); // 이진화
+        threshold(gray_frame, binarization, 120, 255, THRESH_BINARY); // 이진화
         Time_record(tm, vi, idx++, binarization);
 
         binarization.setTo(Scalar(0), mask); // 마스킹
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
         Canny(binarization, edge, 50, 150, 7); // 에지 검출
         Time_record(tm, vi, idx++, edge);
 
-        HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 10, 5); // 직선 검출
+        HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 100, 50); // 직선 검출
         tm.stop();
         dst = draw_img(frame, lines);
         Time_record(tm, vi, idx++, dst);
@@ -177,6 +177,10 @@ int main(int argc, char *argv[])
         Time_record(tm2, vi, idx++, dst);
 
         tm.stop();
+
+        // if (waitKey() > 0)
+        // {
+        // }
     }
 
     // destroyAllWindows();
