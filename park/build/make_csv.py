@@ -9,7 +9,7 @@ item = ["min (ms)", "min-frame-idx", "max (ms)", "max-frame-idx", "avg"]
 process = ["grayscale", "binarization", "roi", "canny", "houghline", "filter line", "total"]
 
 # 저장 경로
-DST_PREFIX = "../result/"
+DST_PREFIX = "../result/tmp/"
 file_name = dt.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + ".csv"
 
 # 출력 결과 txt

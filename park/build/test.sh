@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for ((var=0; var < $1; var++));
+for ((var=1; var <= $1; var++));
 do
 	mkdir ../result/tmp/$var
 	./park $var > ../result/tmp/test$var.txt
