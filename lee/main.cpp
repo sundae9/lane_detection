@@ -40,6 +40,16 @@ void info_mat(Mat mat)
     cout << "channels : " << mat.channels() << endl;
 }
 
+Mat draw_img(Mat frame, vector<Vec4i> lines)
+{
+    Mat dst = frame.clone();
+    for (Vec4i l : lines)
+    {
+        line(dst, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 2, LINE_AA);
+    }
+    return dst;
+}
+
 int main(int argc, char *argv[])
 {
     VideoCapture cap;
@@ -109,7 +119,7 @@ int main(int argc, char *argv[])
         cvtColor(frame, gray_frame, COLOR_BGR2GRAY); // 3채널 -> 1채널
         Time_record(tm, vi, idx++, gray_frame);
 
-        adaptiveThreshold(gray_frame, binarization, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, 3, 3); // 이진화
+        threshold(gray_frame, binarization, 120, 255, THRESH_BINARY); // 이진화
         Time_record(tm, vi, idx++, binarization);
 
         binarization.setTo(Scalar(0), mask); // 마스킹
@@ -117,9 +127,11 @@ int main(int argc, char *argv[])
 
         Canny(binarization, edge, 50, 150, 7); // 에지 검출
         Time_record(tm, vi, idx++, edge);
-        // morphologyEx(edge, closed_edge, MORPH_OPEN, Mat());         // 모폴로지 닫기 연산
-        HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 10, 5); // 직선 검출
-        Time_record(tm, vi, idx++, edge);
+
+        HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 100, 50); // 직선 검출
+        tm.stop();
+        dst = draw_img(frame, lines);
+        Time_record(tm, vi, idx++, dst);
 
         filtered_lines.clear();
 
@@ -130,7 +142,9 @@ int main(int argc, char *argv[])
                 filtered_lines.push_back(l);
             }
         }
-        Time_record(tm, vi, idx++, edge);
+        tm.stop();
+        dst = draw_img(frame, filtered_lines);
+        Time_record(tm, vi, idx++, dst);
 
         lines = filtered_lines;
         filtered_lines.clear();
@@ -142,16 +156,8 @@ int main(int argc, char *argv[])
                 filtered_lines.push_back(l);
             }
         }
-        Time_record(tm, vi, idx++, edge);
-
-        dst = frame.clone();
-
-        for (Vec4i l : filtered_lines)
-        {
-            line(dst, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 2, LINE_AA);
-        }
-
-        line(dst, Point(320, 0), Point(320, 360), Scalar(0, 255, 0), 2, LINE_AA);
+        tm.stop();
+        dst = draw_img(frame, filtered_lines);
         Time_record(tm, vi, idx++, dst);
 
         // imshow("original", frame);
@@ -172,17 +178,14 @@ int main(int argc, char *argv[])
 
         tm.stop();
 
-        if (waitKey(delay) > 0)
-        {
-            imwrite("tmp.png", frame);
-            waitKey();
-        }
+        // if (waitKey() > 0)
+        // {
+        // }
     }
 
     // destroyAllWindows();
 
     Print_info_all(vi, idx);
-    cout << "total frame : " << vi.total_frame << endl;
 
     return 0;
 }

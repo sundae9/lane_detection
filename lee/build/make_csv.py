@@ -6,10 +6,10 @@ from glob import glob
 # 측정 항목
 item = ["min (ms)", "min-frame-idx", "max (ms)", "max-frame-idx", "avg"]
 # 프로세스 이름
-process=["1", "2", "3", "4", "5","6","7","8", "9","10"]
+process=["시작", "흑백", "이진화", "마스킹", "에지검출","직선검출","가로선제거","중앙침범", "총 시간"]
 
 # 저장 경로
-DST_PREFIX = "../result/"
+DST_PREFIX = "../result/tmp/"
 file_name = dt.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + ".csv"
 
 # 출력 결과 txt
