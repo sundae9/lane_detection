@@ -64,9 +64,11 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar c
  * 허프 변환으로 검출된 선들을 필터링해서 그리는 함수
  * @param frame
  * @param lines
+ * @return 검출된 라인 수
  */
-void filterLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
+bool filterLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
     double left_max = 0, right_max = 0;
+    bool left = false, right = false;
     std::vector<Vec4i> lane(2);
 
     for (Vec4i pts: lines) {
@@ -81,16 +83,19 @@ void filterLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
             if (m > left_max) {
                 left_max = m;
                 lane[0] = pts;
+                left = true;
             }
         } else {
             if (m < right_max) {
                 right_max = m;
                 lane[1] = pts;
+                right = true;
             }
         }
         drawLines(frame, {pts});
     }
     drawLines(frame, lane, Scalar(255, 0, 0));
+    return !(left | right);
 }
 
 void houghLineSegments(InputArray frame, InputOutputArray result) {
@@ -154,14 +159,14 @@ void test(InputArray frame, Video_info &vi) {
 
     //5. filter lines
     Mat result = frame.getMat().clone();
-    filterLines(result, lines);
+    vi.undetected += filterLines(result, lines);
 #ifdef TEST
     Time_record(tm, vi, idx++, result);
 
     //6. total
     Time_record(tm2, vi, idx++, result);
 #endif
-//    showImage("result", result, 10);
+    showImage("result", result, 10);
 //    destroyAllWindows();
 }
 
@@ -190,6 +195,8 @@ void videoHandler(const string &file_name, int tc) {
 
     video.release();
     Print_info_all(vi, 7);
+    cout << vi.undetected << ' ' << (double) vi.undetected / vi.total_frame * 100 << '\n';
+    cout << vi.total_frame;
 }
 
 void imageHandler(const string &file_name) {
@@ -220,7 +227,6 @@ int main(int argc, char *argv[]) {
     for (string &file_name: file_list) {
 //        imageHandler(file_name);
         videoHandler(file_name, atoi(argv[1]));
-
     }
 
     return 0;
