@@ -48,6 +48,7 @@ void Initialize_Video_info(Video_info &vi, int test_case)
         vi.time_info.total_time[i] = 0;
     }
     vi.total_frame = 0;
+    vi.undetected = 0;
     vi.test_case = test_case;
 }
 
