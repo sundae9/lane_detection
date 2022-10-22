@@ -72,7 +72,6 @@ public:
  * @param idx 프로세스 인덱스
  */
 void Video_info::time_record(cv::TickMeter &tm, int idx, cv::Mat frame) {
-    this->stop_timer();
     double cur_time = tm.getTimeMilli();
     // 첫번째 프레임은 처리 시간이 길기 때문에 통계에서 제외함
     if (this->total_frame == 1) {
@@ -101,10 +100,7 @@ void Video_info::time_record(cv::TickMeter &tm, int idx, cv::Mat frame) {
 
     // 총합 갱신
     this->time_info.total_time[idx] += cur_time;
-    // 타이머 재시작
     this->prev_img = frame.clone();
-    tm.reset();
-    tm.start();
 }
 
 /**
@@ -114,10 +110,15 @@ void Video_info::time_record(cv::TickMeter &tm, int idx, cv::Mat frame) {
  * @param idx 프로세스 인덱스
  */
 void Video_info::proc_record(int idx, cv::Mat frame) {
+    this->stop_timer();
     this->time_record(this->tm_proc, idx, frame);
+    this->tm_proc.reset();
+    this->tm_proc.start();
+    this->tm_total.start();
 }
 
 void Video_info::total_record(cv::Mat frame) {
+    this->stop_timer();
     this->time_record(this->tm_total, this->proc_cnt, frame);
 }
 
@@ -145,13 +146,13 @@ void Video_info::print_info_all() {
 }
 
 void Video_info::stop_timer() {
-    this->tm_total.stop();
     this->tm_proc.stop();
+    this->tm_total.stop();
 }
 
 void Video_info::start_timer() {
-    this->tm_total.reset();
     this->tm_proc.reset();
-    this->tm_total.start();
+    this->tm_total.reset();
     this->tm_proc.start();
+    this->tm_total.start();
 }
