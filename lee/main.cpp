@@ -133,6 +133,11 @@ int main(int argc, char *argv[])
         dst = draw_img(frame, lines);
         Time_record(tm, vi, idx++, dst);
 
+        if (lines.empty())
+        {
+            vi.undetected++;
+        }
+
         filtered_lines.clear();
 
         for (Vec4i l : lines)
@@ -160,32 +165,29 @@ int main(int argc, char *argv[])
         dst = draw_img(frame, filtered_lines);
         Time_record(tm, vi, idx++, dst);
 
-        // imshow("original", frame);
-        // imshow("dst", dst);
-        // imshow("binarization", binarization);
-        // // imshow("closed_edge", closed_edge);
+        imshow("original", frame);
+        imshow("dst", dst);
+        imshow("binarization", binarization);
 
-        // resizeWindow("original", w, h);
-        // resizeWindow("dst", w, h);
-        // resizeWindow("binarization", w, h);
-        // // resizeWindow("closed_edge", w, h);
+        resizeWindow("original", w, h);
+        resizeWindow("dst", w, h);
+        resizeWindow("binarization", w, h);
 
-        // moveWindow("dst", w, 0);
-        // moveWindow("binarization", 0, h);
-        // moveWindow("closed_edge", w, h);
+        moveWindow("dst", w, 0);
+        moveWindow("binarization", 0, h);
 
         Time_record(tm2, vi, idx++, dst);
 
         tm.stop();
 
-        // if (waitKey() > 0)
-        // {
-        // }
+        if (waitKey(10))
+        {
+        }
     }
 
     // destroyAllWindows();
 
     Print_info_all(vi, idx);
-
+    cout << vi.undetected << endl;
     return 0;
 }
