@@ -33,6 +33,7 @@ struct
     int total_frame;       // 전체 프레임 수
     int test_case;
     cv::Mat prev_img;
+    int undetected;
 } typedef Video_info;
 
 /**
