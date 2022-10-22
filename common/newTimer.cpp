@@ -72,7 +72,7 @@ public:
  * @param idx 프로세스 인덱스
  */
 void Video_info::time_record(cv::TickMeter &tm, int idx, cv::Mat frame) {
-    tm.stop();
+    this->stop_timer();
     double cur_time = tm.getTimeMilli();
     // 첫번째 프레임은 처리 시간이 길기 때문에 통계에서 제외함
     if (this->total_frame == 1) {
@@ -103,8 +103,7 @@ void Video_info::time_record(cv::TickMeter &tm, int idx, cv::Mat frame) {
     this->time_info.total_time[idx] += cur_time;
     // 타이머 재시작
     this->prev_img = frame.clone();
-    tm.reset();
-    tm.start();
+    this->start_timer();
 }
 
 /**
@@ -114,11 +113,11 @@ void Video_info::time_record(cv::TickMeter &tm, int idx, cv::Mat frame) {
  * @param idx 프로세스 인덱스
  */
 void Video_info::proc_record(int idx, cv::Mat frame) {
-    time_record(this->tm_proc, idx, frame);
+    this->time_record(this->tm_proc, idx, frame);
 }
 
 void Video_info::total_record(cv::Mat frame) {
-    time_record(this->tm_total, this->proc_cnt, frame);
+    this->time_record(this->tm_total, this->proc_cnt, frame);
 }
 
 /**
