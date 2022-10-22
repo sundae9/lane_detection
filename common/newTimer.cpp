@@ -103,7 +103,8 @@ void Video_info::time_record(cv::TickMeter &tm, int idx, cv::Mat frame) {
     this->time_info.total_time[idx] += cur_time;
     // 타이머 재시작
     this->prev_img = frame.clone();
-    this->start_timer();
+    tm.reset();
+    tm.start();
 }
 
 /**
