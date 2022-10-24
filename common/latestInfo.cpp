@@ -30,7 +30,7 @@ public:
     int undetected_cnt; // 연속으로 선분을 찾지 못한 프레임의 수
     int que_length;     // 큐에 들어있는 프레임의 수
     Sum sum; // 합계 정보
-    int adaptive_ROI_flag;  // 동적 roi 플래그 표시
+    bool adaptive_ROI_flag;  // 동적 roi 플래그 표시
 
     void update_lines(Line_info li_left, Line_info li_right); // 차선 정보 갱신
     Avg get_avg(); // 좌측, 우측의 X좌표와 기울기의 평균 반환
