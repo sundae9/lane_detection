@@ -6,19 +6,19 @@ const int PROC_MAX_SIZE = 20;
 /**
  * 각 프로세스 별 시간의 최소, 최대, 총합
  */
-struct {
+struct Time_info {
     double min_time[PROC_MAX_SIZE];   // 각 프로세스 별 최소 시간
     double max_time[PROC_MAX_SIZE];   // 각 프로세스 별 최대 시간
     double total_time[PROC_MAX_SIZE]; // 각 프로세스 합계 (평균 시간 측정용)
-} typedef Time_info;
+};
 
 /**
  * 각 프로세스 별 최소, 최대일 때 프레임 인덱스 정보
  */
-struct {
+struct Frame_info {
     int min_frame[PROC_MAX_SIZE]; // 각 프로세스 별 시간이 최소일 때 프레임 인덱스
     int max_frame[PROC_MAX_SIZE]; // 각 프로세스 별 시간이 최대일 때 프레임 인덱스
-} typedef Frame_info;
+};
 
 /**
  * 시간 측정 클래스
