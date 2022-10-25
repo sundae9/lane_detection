@@ -61,7 +61,7 @@ void LatestInfo::update_lines(Line_info li_left, Line_info li_right) {
     this->update_idx = (this->update_idx + 1) % QUE_MAX_SIZE;
 
     // 적응형 roi on
-    if (++this->que_length == QUE_MAX_SIZE) {
+    if (!this->adaptive_ROI_flag && ++this->que_length == QUE_MAX_SIZE) {
         this->adaptive_ROI_flag = true;
     }
 }
