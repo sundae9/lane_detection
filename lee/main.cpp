@@ -5,9 +5,10 @@
 using namespace std;
 using namespace cv;
 
-#define width 640
-#define height 480
-#define proc_size 20
+#define DEBUG_MODE
+
+#define WIDTH 640
+#define HEIGHT 360
 
 typedef Vec4i Line;
 
@@ -17,7 +18,7 @@ bool angle_filter(Line line, double angle_threshold)
     double dy = abs(line[3] - line[1]);
     double increse_rate = dy / dx;
 
-    int w = width / 2;
+    int w = WIDTH / 2;
     if (angle_threshold <= increse_rate && !(line[2] < (w / 2) && line[0] > (w / 2)) && !(line[2] > (w / 2) && line[0] < (w / 2)))
         return true;
 
@@ -26,7 +27,7 @@ bool angle_filter(Line line, double angle_threshold)
 
 bool cross_filter(Line line)
 {
-    int mid = width / 2;
+    int mid = WIDTH / 2;
     if ((line[0] > mid && line[2] > mid) || (line[0] < mid && line[2] < mid))
         return true;
 
@@ -40,7 +41,7 @@ void info_mat(Mat mat)
     cout << "channels : " << mat.channels() << endl;
 }
 
-Mat draw_img(Mat frame, vector<Vec4i> lines)
+Mat draw_lines(Mat frame, vector<Vec4i> lines)
 {
     Mat dst = frame.clone();
     for (Vec4i l : lines)
@@ -75,8 +76,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    w = 640;
-    h = 360;
+    w = WIDTH;
+    h = HEIGHT;
 
     fps = cap.get(CAP_PROP_FPS);
 
@@ -90,18 +91,14 @@ int main(int argc, char *argv[])
     mask = Mat::zeros(h, w, CV_8UC1);
     fillPoly(mask, pts, Scalar(255), LINE_AA);
     mask = ~mask;
-    double total;
-    vi.total_frame = 0;
-    for (int i = 0; i < 20; i++)
-    {
-        vi.time_info.min_time[i] = 100;
-    }
 
     while (true)
     {
+#ifdef DEBUG_MODE
         long t1 = getTickCount();
 
         vi.total_frame += 1;
+#endif
 
         cap >> frame;
         vi.prev_img = frame.clone();
@@ -109,29 +106,54 @@ int main(int argc, char *argv[])
         if (frame.empty())
             break;
         idx = 0;
+
+#ifdef DEBUG_MODE
         tm.reset();
         tm.start();
         tm2.reset();
         tm2.start();
 
         Time_record(tm, vi, idx++, frame);
+#endif
 
         cvtColor(frame, gray_frame, COLOR_BGR2GRAY); // 3채널 -> 1채널
+
+#ifdef DEBUG_MODE
         Time_record(tm, vi, idx++, gray_frame);
+#endif
 
         threshold(gray_frame, binarization, 120, 255, THRESH_BINARY); // 이진화
+
+#ifdef DEBUG_MODE
         Time_record(tm, vi, idx++, binarization);
+#endif
 
         binarization.setTo(Scalar(0), mask); // 마스킹
+
+#ifdef DEBUG_MODE
         Time_record(tm, vi, idx++, binarization);
+#endif
 
         Canny(binarization, edge, 50, 150, 7); // 에지 검출
+
+#ifdef DEBUG_MODE
         Time_record(tm, vi, idx++, edge);
+#endif
 
         HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 100, 50); // 직선 검출
-        tm.stop();
-        dst = draw_img(frame, lines);
+
+#ifdef DEBUG_MODE
+        if (lines.empty())
+        {
+            vi.undetected++;
+        }
+        else
+        {
+            dst = draw_lines(frame, lines);
+        }
+
         Time_record(tm, vi, idx++, dst);
+#endif
 
         filtered_lines.clear();
 
@@ -142,9 +164,11 @@ int main(int argc, char *argv[])
                 filtered_lines.push_back(l);
             }
         }
-        tm.stop();
-        dst = draw_img(frame, filtered_lines);
+
+        dst = draw_lines(frame, filtered_lines);
+#ifdef DEBUG_MODE
         Time_record(tm, vi, idx++, dst);
+#endif
 
         lines = filtered_lines;
         filtered_lines.clear();
@@ -156,36 +180,36 @@ int main(int argc, char *argv[])
                 filtered_lines.push_back(l);
             }
         }
-        tm.stop();
-        dst = draw_img(frame, filtered_lines);
+
+        dst = draw_lines(frame, filtered_lines);
+
+#ifdef DEBUG_MODE
         Time_record(tm, vi, idx++, dst);
+#else
+        imshow("original", frame);
+        imshow("dst", dst);
+        imshow("binarization", binarization);
 
-        // imshow("original", frame);
-        // imshow("dst", dst);
-        // imshow("binarization", binarization);
-        // // imshow("closed_edge", closed_edge);
+        resizeWindow("original", w, h);
+        resizeWindow("dst", w, h);
+        resizeWindow("binarization", w, h);
 
-        // resizeWindow("original", w, h);
-        // resizeWindow("dst", w, h);
-        // resizeWindow("binarization", w, h);
-        // // resizeWindow("closed_edge", w, h);
+        moveWindow("dst", w, 0);
+        moveWindow("binarization", 0, h);
 
-        // moveWindow("dst", w, 0);
-        // moveWindow("binarization", 0, h);
-        // moveWindow("closed_edge", w, h);
-
-        Time_record(tm2, vi, idx++, dst);
-
-        tm.stop();
-
-        // if (waitKey() > 0)
-        // {
-        // }
+        if (waitKey(5))
+        {
+        }
+#endif
     }
 
-    // destroyAllWindows();
+#ifndef DEBUG_MODE
+    destroyAllWindows();
+#endif
 
+#ifdef DEBUG_MODE
     Print_info_all(vi, idx);
-
+    cout << vi.undetected << endl;
+#endif
     return 0;
 }
