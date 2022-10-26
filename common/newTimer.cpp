@@ -135,7 +135,6 @@ void TimeLapse::total_record(cv::Mat original, cv::Mat result) {
     // 처리 전 이미지를 원본으로 바꿔둠
     this->prev_img = original.clone();
     this->time_record(cur_time, this->proc_cnt, result);
-    this->restart_both_timer();
 }
 
 /**
@@ -146,7 +145,7 @@ void TimeLapse::print_info(int proc_idx) {
     std::cout << proc_idx << ",";                                                               // 프로세스 번호
     std::cout << this->time_info.min_time[proc_idx] << "," << this->frame_info.min_frame[proc_idx] << ","; // 최소 정보
     std::cout << this->time_info.max_time[proc_idx] << "," << this->frame_info.max_frame[proc_idx] << ","; // 최대 정보
-    std::cout << this->time_info.total_time[proc_idx] / (this->total_frame - 1) << ",\n";             // 평균 정보
+    std::cout << this->time_info.total_time[proc_idx] / (this->total_frame - 1) << ",\n";// 평균 정보 -1번 프레임은 통계에서 제외
 }
 
 /**
@@ -168,4 +167,6 @@ void TimeLapse::restart_both_timer() {
     this->tm_total.reset();
     this->tm_proc.start();
     this->tm_total.start();
+
+    this->total_frame++;
 }
