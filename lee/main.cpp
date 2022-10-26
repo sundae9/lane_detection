@@ -1,6 +1,7 @@
 #include <iostream>
-#include "../common/timer.cpp"
 #include <opencv2/opencv.hpp>
+
+#include "../common/newTimer.cpp"
 
 using namespace std;
 using namespace cv;
@@ -12,8 +13,7 @@ using namespace cv;
 
 typedef Vec4i Line;
 
-bool angle_filter(Line line, double angle_threshold)
-{
+bool angle_filter(Line line, double angle_threshold) {
     double dx = abs(line[2] - line[0]);
     double dy = abs(line[3] - line[1]);
     double increse_rate = dy / dx;
@@ -25,8 +25,7 @@ bool angle_filter(Line line, double angle_threshold)
     return false;
 }
 
-bool cross_filter(Line line)
-{
+bool cross_filter(Line line) {
     int mid = WIDTH / 2;
     if ((line[0] > mid && line[2] > mid) || (line[0] < mid && line[2] < mid))
         return true;
@@ -34,25 +33,21 @@ bool cross_filter(Line line)
     return false;
 }
 
-void info_mat(Mat mat)
-{
+void info_mat(Mat mat) {
     cout << "width : " << mat.cols << endl;
     cout << "height : " << mat.rows << endl;
     cout << "channels : " << mat.channels() << endl;
 }
 
-Mat draw_lines(Mat frame, vector<Vec4i> lines)
-{
+Mat draw_lines(Mat frame, vector<Vec4i> lines) {
     Mat dst = frame.clone();
-    for (Vec4i l : lines)
-    {
+    for (Vec4i l : lines) {
         line(dst, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 2, LINE_AA);
     }
     return dst;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     VideoCapture cap;
     int w, h;
     Mat frame, resize_frame, gray_frame, mask;
@@ -64,14 +59,12 @@ int main(int argc, char *argv[])
     string filepath = "./";
     string filename = "3.avi";
 
-    Video_info vi;
-    Initialize_Video_info(vi, atoi(argv[1]));
+    TimeLapse tl = TimeLapse(8);
     int idx = 0;
 
     cap.open(filepath + filename, CAP_ANY);
 
-    if (!cap.isOpened())
-    {
+    if (!cap.isOpened()) {
         cerr << " img read failed!" << endl;
         return -1;
     }
@@ -92,91 +85,76 @@ int main(int argc, char *argv[])
     fillPoly(mask, pts, Scalar(255), LINE_AA);
     mask = ~mask;
 
-    while (true)
-    {
+    while (true) {
 #ifdef DEBUG_MODE
-        long t1 = getTickCount();
-
-        vi.total_frame += 1;
+        tl.restart();
 #endif
 
         cap >> frame;
-        vi.prev_img = frame.clone();
+        tl.prev_img = frame.clone();
 
         if (frame.empty())
             break;
         idx = 0;
 
 #ifdef DEBUG_MODE
-        tm.reset();
-        tm.start();
-        tm2.reset();
-        tm2.start();
-
-        Time_record(tm, vi, idx++, frame);
+        tl.proc_record(frame);
 #endif
 
-        cvtColor(frame, gray_frame, COLOR_BGR2GRAY); // 3채널 -> 1채널
+        cvtColor(frame, gray_frame, COLOR_BGR2GRAY);  // 3채널 -> 1채널
 
 #ifdef DEBUG_MODE
-        Time_record(tm, vi, idx++, gray_frame);
+        tl.proc_record(gray_frame);
 #endif
 
-        threshold(gray_frame, binarization, 120, 255, THRESH_BINARY); // 이진화
+        threshold(gray_frame, binarization, 120, 255, THRESH_BINARY);  // 이진화
 
 #ifdef DEBUG_MODE
-        Time_record(tm, vi, idx++, binarization);
+        tl.proc_record(binarization);
 #endif
 
-        binarization.setTo(Scalar(0), mask); // 마스킹
+        binarization.setTo(Scalar(0), mask);  // 마스킹
 
 #ifdef DEBUG_MODE
-        Time_record(tm, vi, idx++, binarization);
+        tl.proc_record(binarization);
 #endif
 
-        Canny(binarization, edge, 50, 150, 7); // 에지 검출
+        Canny(binarization, edge, 50, 150, 7);  // 에지 검출
 
 #ifdef DEBUG_MODE
-        Time_record(tm, vi, idx++, edge);
+        tl.proc_record(edge);
 #endif
 
-        HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 100, 50); // 직선 검출
+        HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 100, 50);  // 직선 검출
 
 #ifdef DEBUG_MODE
-        if (lines.empty())
-        {
-            vi.undetected++;
-        }
-        else
-        {
+        if (lines.empty()) {
+            // vi.undetected++;
+        } else {
             dst = draw_lines(frame, lines);
         }
 
-        Time_record(tm, vi, idx++, dst);
+        tl.proc_record(dst);
 #endif
 
         filtered_lines.clear();
 
-        for (Vec4i l : lines)
-        {
-            if (angle_filter(l, 0.5))
-            {
+        for (Vec4i l : lines) {
+            if (angle_filter(l, 0.5)) {
                 filtered_lines.push_back(l);
             }
         }
 
         dst = draw_lines(frame, filtered_lines);
 #ifdef DEBUG_MODE
-        Time_record(tm, vi, idx++, dst);
+        tl.proc_record(dst);
 #endif
 
         lines = filtered_lines;
         filtered_lines.clear();
 
-        for (Vec4i l : lines)
-        {
-            if (cross_filter(l))
-            {
+        for (Vec4i l : lines) {
+            if (cross_filter(l)) {
                 filtered_lines.push_back(l);
             }
         }
@@ -184,7 +162,8 @@ int main(int argc, char *argv[])
         dst = draw_lines(frame, filtered_lines);
 
 #ifdef DEBUG_MODE
-        Time_record(tm, vi, idx++, dst);
+        tl.proc_record(dst);
+        tl.total_record(frame, dst);
 #else
         imshow("original", frame);
         imshow("dst", dst);
@@ -197,8 +176,7 @@ int main(int argc, char *argv[])
         moveWindow("dst", w, 0);
         moveWindow("binarization", 0, h);
 
-        if (waitKey(5))
-        {
+        if (waitKey(5)) {
         }
 #endif
     }
@@ -208,8 +186,8 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef DEBUG_MODE
-    Print_info_all(vi, idx);
-    cout << vi.undetected << endl;
+    tl.print_info_all();
+    // cout << vi.undetected << endl;
 #endif
     return 0;
 }
