@@ -1,9 +1,10 @@
 #!/bin/bash
 
-for ((var=0; var < $1; var++));
+for ((var=1; var <= $1; var++));
 do
-	./park > ../result/tmp/test$var.txt
-	echo $var
+	mkdir ../result/tmp/$var
+	./park $var > ../result/tmp/test$var.txt
+	echo "tc $var completed"
 done
 
-python3 make_csv.py
+echo $1 | python3 make_csv.py
