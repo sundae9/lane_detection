@@ -33,6 +33,7 @@ public:
     int total_frame;       // 전체 프레임 수
     int test_case;         // 테스트 케이스 번호
     int proc_cnt;          // 전체 프로세스 수
+    int proc_idx;
     cv::Mat prev_img;      // 직전 처리된 이미지 저장
 
     /**
@@ -47,6 +48,7 @@ public:
         }
         this->total_frame = 0;
         this->proc_cnt = proc_cnt;
+        this->proc_idx = 0;
     }
 
     /**
@@ -59,7 +61,7 @@ public:
 
     void time_record(double cur_time, int idx, cv::Mat frame);
 
-    void proc_record(int idx, cv::Mat frame);
+    void proc_record(cv::Mat frame);
 
     void total_record(cv::Mat original, cv::Mat result);
 
@@ -69,7 +71,7 @@ public:
 
     void stop_both_timer();
 
-    void restart_both_timer();
+    void restart();
 };
 
 /**
@@ -115,13 +117,14 @@ void TimeLapse::time_record(double cur_time, int proc_idx, cv::Mat frame) {
  * @param proc_idx
  * @param frame
  */
-void TimeLapse::proc_record(int proc_idx, cv::Mat frame) {
+void TimeLapse::proc_record(cv::Mat frame) {
     this->stop_both_timer();
     double cur_time = this->tm_proc.getTimeMilli();
     this->time_record(cur_time, proc_idx, frame);
     this->tm_proc.reset();
     this->tm_proc.start();
     this->tm_total.start();
+    this->proc_idx++;
 }
 
 /**
@@ -141,11 +144,11 @@ void TimeLapse::total_record(cv::Mat original, cv::Mat result) {
  * @brief 기록한 정보 출력하는 함수 -> 디버깅 용
  * @param proc_idx 출력할 프로세스 "인덱스"
  */
-void TimeLapse::print_info(int proc_idx) {
-    std::cout << proc_idx << ",";                                                               // 프로세스 번호
-    std::cout << this->time_info.min_time[proc_idx] << "," << this->frame_info.min_frame[proc_idx] << ","; // 최소 정보
-    std::cout << this->time_info.max_time[proc_idx] << "," << this->frame_info.max_frame[proc_idx] << ","; // 최대 정보
-    std::cout << this->time_info.total_time[proc_idx] / (this->total_frame - 1) << ",\n";// 평균 정보 -1번 프레임은 통계에서 제외
+void TimeLapse::print_info(int idx) {
+    std::cout << idx << ",";                                                               // 프로세스 번호
+    std::cout << this->time_info.min_time[idx] << "," << this->frame_info.min_frame[idx] << ","; // 최소 정보
+    std::cout << this->time_info.max_time[idx] << "," << this->frame_info.max_frame[idx] << ","; // 최대 정보
+    std::cout << this->time_info.total_time[idx] / (this->total_frame - 1) << ",\n";// 평균 정보 -1번 프레임은 통계에서 제외
 }
 
 /**
@@ -162,11 +165,12 @@ void TimeLapse::stop_both_timer() {
     this->tm_total.stop();
 }
 
-void TimeLapse::restart_both_timer() {
+void TimeLapse::restart() {
     this->tm_proc.reset();
     this->tm_total.reset();
     this->tm_proc.start();
     this->tm_total.start();
 
     this->total_frame++;
+    this->proc_idx = 0;
 }
