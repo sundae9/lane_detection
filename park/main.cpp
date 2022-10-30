@@ -3,9 +3,11 @@
 #include "opencv2/opencv.hpp"
 
 #define TEST
-#ifdef TEST
 
-#include "../common/timer.cpp"
+#include "../common/newTimer.cpp"
+
+TimeLapse tl(6);
+#ifdef TEST
 
 #endif
 
@@ -28,6 +30,11 @@ double getInclination(Point2f p1, Point2f p2) {
     if (p1.x == p2.x) return 1e5;
     return (double) (p1.y - p2.y) / (p1.x - p2.x);
 }
+
+double getCotangent(Point p1, Point p2) {
+    return (double) (p1.x - p2.x) / (p1.y - p2.y);
+}
+
 
 // 전처리 단계
 // 1. 이진화
@@ -74,8 +81,8 @@ bool filterLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         // 직선 필터링... (임시)
-        double m = getInclination(p1, p2);
-        if (abs(m) < 0.3) {
+        double m = getCotangent(p1, p2);
+        if (abs(m) > 1.73) {
             drawLines(frame, {pts}, Scalar(0, 0, 255));
             continue;
         }
@@ -107,26 +114,21 @@ void houghLineSegments(InputArray frame, InputOutputArray result) {
     drawLines(result, lines);
 }
 
-void test(InputArray frame, Video_info &vi) {
+void test(InputArray frame) {
 #ifdef TEST
-    TickMeter tm, tm2;
-    int idx = 0;
-    tm.reset();
-    tm2.reset();
-    tm.start();
-    tm2.start();
+    tl.restart();
 #endif
     // 0. to grayscale
     Mat grayscaled;
     cvtColor(frame, grayscaled, COLOR_BGR2GRAY);
 #ifdef TEST
-    Time_record(tm, vi, idx++, grayscaled);
+    tl.proc_record(grayscaled);
 #endif
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
 
 #ifdef TEST
-    Time_record(tm, vi, idx++, grayscaled);
+    tl.proc_record(grayscaled);
 #endif
 //    showImage("grayscaled", grayscaled);
 
@@ -134,7 +136,7 @@ void test(InputArray frame, Video_info &vi) {
     Mat roi;
     applyStaticROI(grayscaled, roi);
 #ifdef TEST
-    Time_record(tm, vi, idx++, roi);
+    tl.proc_record(roi);
 #endif
 //    showImage("roi", roi);
 
@@ -142,7 +144,7 @@ void test(InputArray frame, Video_info &vi) {
     Mat edge;
     Canny(roi, edge, 50, 150);
 #ifdef TEST
-    Time_record(tm, vi, idx++, edge);
+    tl.proc_record(edge);
 #endif
 
 //    showImage("edge", edge);
@@ -151,26 +153,25 @@ void test(InputArray frame, Video_info &vi) {
     std::vector<Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
 #ifdef TEST
-    tm.stop();
+    tl.stop_both_timer();
     Mat preview_lines = frame.getMat().clone();
     drawLines(preview_lines, lines);
-    Time_record(tm, vi, idx++, preview_lines);
+    tl.proc_record(preview_lines);
 #endif
 
     //5. filter lines
     Mat result = frame.getMat().clone();
-    vi.undetected += filterLines(result, lines);
 #ifdef TEST
-    Time_record(tm, vi, idx++, result);
-
+    tl.proc_record(result);
     //6. total
-    Time_record(tm2, vi, idx++, result);
+    tl.total_record(frame.getMat(), result);
+
 #endif
     showImage("result", result, 10);
 //    destroyAllWindows();
 }
 
-void videoHandler(const string &file_name, int tc) {
+void videoHandler(const string &file_name) {
     VideoCapture video(file_name);
 
     if (!video.isOpened()) {
@@ -179,8 +180,8 @@ void videoHandler(const string &file_name, int tc) {
     }
 
     Mat frame;
-    Video_info vi;
-    Initialize_Video_info(vi, tc);
+    tl = TimeLapse(6);
+    tl.set_tc(1);
 
     while (true) {
         video >> frame;
@@ -188,15 +189,13 @@ void videoHandler(const string &file_name, int tc) {
         if (frame.empty()) {
             break;
         }
-        vi.total_frame++;
-        vi.prev_img = frame.clone();
-        test(frame, vi);
+        tl.total_frame++;
+        tl.prev_img = frame.clone();
+        test(frame);
     }
 
     video.release();
-    Print_info_all(vi, 7);
-    cout << vi.undetected << ' ' << (double) vi.undetected / vi.total_frame * 100 << '\n';
-    cout << vi.total_frame;
+    tl.print_info_all();
 }
 
 void imageHandler(const string &file_name) {
@@ -212,7 +211,7 @@ void imageHandler(const string &file_name) {
 
 int main(int argc, char *argv[]) {
     vector<string> file_list;
-    glob(SRC_PREFIX + "2.avi", file_list);
+    glob(SRC_PREFIX + "*.avi", file_list);
 
     if (file_list.empty()) {
         cout << "can't find image list\n";
@@ -226,7 +225,7 @@ int main(int argc, char *argv[]) {
 
     for (string &file_name: file_list) {
 //        imageHandler(file_name);
-        videoHandler(file_name, atoi(argv[1]));
+        videoHandler(file_name);
     }
 
     return 0;
