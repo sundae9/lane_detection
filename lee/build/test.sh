@@ -2,9 +2,10 @@
 
 for ((var=0; var < $1; var++));
 do
-	mkdir ../result/tmp/$var
-	./lee $var > ../result/tmp/test$var.txt
+#	mkdir ../result/tmp/$var
+	mkdir ../result/tmp/proc$var
+#	./lee $var > ../result/tmp/test$var.txt
 	echo "tc $var completed"
 done
 
-echo $1 | python3 make_csv.py
+#echo $1 | python3 make_csv.py

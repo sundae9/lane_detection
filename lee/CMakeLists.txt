@@ -8,7 +8,5 @@ include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(lee
         main.cpp
-        #        videoPlayer.cpp
         )
-
 target_link_libraries(lee ${OpenCV_LIBS})
