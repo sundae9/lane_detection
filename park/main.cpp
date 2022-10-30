@@ -167,7 +167,7 @@ void test(InputArray frame) {
     tl.total_record(frame.getMat(), result);
 
 #endif
-    showImage("result", result, 10);
+//    showImage("result", result, 10);
 //    destroyAllWindows();
 }
 
