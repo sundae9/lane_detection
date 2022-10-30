@@ -9,7 +9,7 @@
 using namespace std;
 using namespace cv;
 
-#define DEBUG_MODE
+//#define DEBUG_MODE
 
 #define WIDTH 640
 #define HEIGHT 360
@@ -19,7 +19,7 @@ typedef vector<Line> Lines;
 
 
 /**
- * 선의 기울기 반환
+ *
  * @param line 기울기를 구할 선
  * @return 기울기를 반환
  */
@@ -31,7 +31,12 @@ double increse_rate(Line line) {
     return increse_rate;
 }
 
-
+/**
+ *
+ * @param line 선분
+ * @param angle_threshold 기울기 임계치
+ * @return 특정 각도(angle_threshold) 이상의 선분일 경우 true, 아니라면 false
+ */
 bool angle_filter(Line line, double angle_threshold) {
     double grad = abs(increse_rate(line));
 
@@ -43,7 +48,11 @@ bool angle_filter(Line line, double angle_threshold) {
     return false;
 }
 
-
+/**
+ *
+ * @param line 선분
+ * @return 화면의 중앙을 넘는 선분이라면 false
+ */
 bool cross_filter(Line line) {
     int mid = WIDTH / 2;
     if ((line[0] > mid && line[2] > mid) || (line[0] < mid && line[2] < mid))
@@ -52,7 +61,11 @@ bool cross_filter(Line line) {
     return false;
 }
 
-
+/**
+ *
+ * @param lines 선분들
+ * @return 기울기가 가장 큰 선분 반환
+ */
 Line most_angle_filter(Lines lines) {
     int max_angle = -1;
     Line most_line;
@@ -77,21 +90,37 @@ void info_mat(Mat mat) {
     cout << "channels : " << mat.channels() << endl;
 }
 
-
-Mat draw_lines(const Mat &frame, const Lines &lines) {
-    Mat dst = frame.clone();
+/**
+ *
+ * @param original 오리지날 행렬
+ * @param lines 선분들
+ * @return 선분들을 그린 행렬 반환
+ */
+Mat draw_lines(const Mat &original, const Lines &lines) {
+    Mat dst = original.clone();
     for (Vec4i l: lines) {
         line(dst, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 2, LINE_AA);
     }
     return dst;
 }
 
-Mat draw_line(const Mat &frame, Line l) {
-    Mat dst = frame.clone();
+/**
+ *
+ * @param original 오리지날 행렬
+ * @param l 선분
+ * @return 선분을 그린 행렬 반환
+ */
+Mat draw_line(const Mat &original, Line l) {
+    Mat dst = original.clone();
     line(dst, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 2, LINE_AA);
     return dst;
 }
 
+/**
+ * @brief 오리지날 행렬에 선분을 그린 후 출력
+ * @param original  오리지날 행렬
+ * @param lines 선분들
+ */
 void show_image(Mat original, const Lines &lines) {
     Mat dst = draw_lines(original, lines);
 
@@ -105,6 +134,13 @@ void show_image(Mat original, const Lines &lines) {
 
 }
 
+/***
+ * @brief 오리지날 행렬에 마스킹 적용 후 반환
+ * @param tl TimeLapse 객체
+ * @param frame 오리지날 행렬
+ * @param mask mask 행렬
+ * @return mask를 적용시킨 행렬
+ */
 Mat adapt_mask(TimeLapse &tl, const Mat &frame, Mat mask) {
     Mat resize_frame, gray_frame, binarization;
 
@@ -134,7 +170,14 @@ Mat adapt_mask(TimeLapse &tl, const Mat &frame, Mat mask) {
     return binarization;
 }
 
-
+/**
+ * @brief 마스킹 된 이미지를 받아 lane detection 처리
+ * @param tl TimeLapse 객체
+ * @param original 오리지날 행렬
+ * @param frame 마스킹 적용한 행렬
+ * @param latest LatestInfo 객체
+ * @return 최종적으로 선정된 선분 반환
+ */
 Line detection(TimeLapse &tl, const Mat &original, const Mat &frame, LatestInfo latest) {
     Mat edge, dst;
     vector<Vec4i> lines, filtered_lines;
@@ -176,7 +219,7 @@ Line detection(TimeLapse &tl, const Mat &original, const Mat &frame, LatestInfo 
         }
     }
 
-//    dst = draw_lines(original, filtered_lines);
+    dst = draw_lines(original, filtered_lines);
 
 
 #ifdef DEBUG_MODE
@@ -184,17 +227,12 @@ Line detection(TimeLapse &tl, const Mat &original, const Mat &frame, LatestInfo 
 #endif
 
     Line line = most_angle_filter(filtered_lines);
+    dst = draw_line(original, line);
 
 #ifdef DEBUG_MODE
     tl.proc_record(dst);
     tl.total_record(frame, dst);
 
-#else
-    //    show_image(original, filtered_lines);
-
-    //    if (waitKey(5)) {
-    //        waitKey();
-    //    }
 #endif
 
     return line;
