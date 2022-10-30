@@ -1,7 +1,9 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <utility>
 
 #include "../common/newTimer.cpp"
+#include "../common/latestInfo.cpp"
 #include "./Roi.cpp"
 
 using namespace std;
@@ -13,15 +15,28 @@ using namespace cv;
 #define HEIGHT 360
 
 typedef Vec4i Line;
+typedef vector<Line> Lines;
+
+
+/**
+ * 선의 기울기 반환
+ * @param line 기울기를 구할 선
+ * @return 기울기를 반환
+ */
+double increse_rate(Line line) {
+    double dx = line[2] - line[0];
+    double dy = line[3] - line[1];
+    double increse_rate = dy / dx;
+
+    return increse_rate;
+}
 
 
 bool angle_filter(Line line, double angle_threshold) {
-    double dx = abs(line[2] - line[0]);
-    double dy = abs(line[3] - line[1]);
-    double increse_rate = dy / dx;
+    double grad = abs(increse_rate(line));
 
     int w = WIDTH / 2;
-    if (angle_threshold <= increse_rate && !(line[2] < (w / 2) && line[0] > (w / 2)) &&
+    if (angle_threshold <= grad && !(line[2] < (w / 2) && line[0] > (w / 2)) &&
         !(line[2] > (w / 2) && line[0] < (w / 2)))
         return true;
 
@@ -38,13 +53,32 @@ bool cross_filter(Line line) {
 }
 
 
+Line most_angle_filter(Lines lines) {
+    int max_angle = -1;
+    Line most_line;
+    double dx = 0, dy = 0, grad = 0;
+
+    for (const Vec4i &l: lines) {
+        grad = abs(increse_rate(l));
+
+        if (grad > max_angle) {
+            most_line = l;
+            max_angle = grad;
+        }
+    }
+
+    return most_line;
+}
+
+
 void info_mat(Mat mat) {
     cout << "width : " << mat.cols << endl;
     cout << "height : " << mat.rows << endl;
     cout << "channels : " << mat.channels() << endl;
 }
 
-Mat draw_lines(Mat frame, vector<Vec4i> lines) {
+
+Mat draw_lines(const Mat &frame, const Lines &lines) {
     Mat dst = frame.clone();
     for (Vec4i l: lines) {
         line(dst, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 2, LINE_AA);
@@ -52,14 +86,27 @@ Mat draw_lines(Mat frame, vector<Vec4i> lines) {
     return dst;
 }
 
-void detection(TimeLapse &tl, const Mat &frame) {
-    Mat resize_frame, gray_frame, binarization, edge, dst;
-    vector<Vec4i> lines, filtered_lines;
+Mat draw_line(const Mat &frame, Line l) {
+    Mat dst = frame.clone();
+    line(dst, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0, 0, 255), 2, LINE_AA);
+    return dst;
+}
 
-    Roi left_mask(false), right_mask(true);
-    Mat mask;
+void show_image(Mat original, const Lines &lines) {
+    Mat dst = draw_lines(original, lines);
 
-    bitwise_and(left_mask.mask, right_mask.mask, mask);
+    imshow("original", original);
+    imshow("dst", dst);
+
+    resizeWindow("original", WIDTH, HEIGHT);
+    resizeWindow("dst", WIDTH, HEIGHT);
+
+    moveWindow("dst", WIDTH, 0);
+
+}
+
+Mat adapt_mask(TimeLapse &tl, const Mat &frame, Mat mask) {
+    Mat resize_frame, gray_frame, binarization;
 
 #ifdef DEBUG_MODE
     tl.restart();
@@ -84,21 +131,25 @@ void detection(TimeLapse &tl, const Mat &frame) {
     tl.proc_record(binarization);
 #endif
 
-    Canny(binarization, edge, 50, 150, 7);  // 에지 검출
+    return binarization;
+}
+
+
+Line detection(TimeLapse &tl, const Mat &original, const Mat &frame, LatestInfo latest) {
+    Mat edge, dst;
+    vector<Vec4i> lines, filtered_lines;
+
+    Canny(frame, edge, 50, 150, 7);  // 에지 검출
+
 #ifdef DEBUG_MODE
     tl.proc_record(edge);
 #endif
 
     HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 100, 50);  // 직선 검출
 
-#ifdef DEBUG_MODE
-    if (lines.empty()) {
-        dst = frame.clone();
-        // vi.undetected++;
-    } else {
-        dst = draw_lines(frame, lines);
-    }
+    dst = draw_lines(frame, lines);
 
+#ifdef DEBUG_MODE
     tl.proc_record(dst);
 #endif
 
@@ -110,9 +161,9 @@ void detection(TimeLapse &tl, const Mat &frame) {
         }
     }
 
+    dst = draw_lines(frame, filtered_lines);
 
 #ifdef DEBUG_MODE
-    dst = draw_lines(frame, filtered_lines);
     tl.proc_record(dst);
 #endif
 
@@ -125,41 +176,47 @@ void detection(TimeLapse &tl, const Mat &frame) {
         }
     }
 
-    dst = draw_lines(frame, filtered_lines);
+//    dst = draw_lines(original, filtered_lines);
+
+
+#ifdef DEBUG_MODE
+    tl.proc_record(dst);
+#endif
+
+    Line line = most_angle_filter(filtered_lines);
 
 #ifdef DEBUG_MODE
     tl.proc_record(dst);
     tl.total_record(frame, dst);
+
 #else
-    imshow("original", frame);
-    imshow("dst", dst);
-    imshow("binarization", binarization);
-    imshow("mask", mask);
+    //    show_image(original, filtered_lines);
 
-    resizeWindow("original", WIDTH, HEIGHT);
-    resizeWindow("dst", WIDTH, HEIGHT);
-    resizeWindow("binarization", WIDTH, HEIGHT);
-    resizeWindow("mask", WIDTH, HEIGHT);
-
-    moveWindow("dst", WIDTH, 0);
-    moveWindow("binarization", 0, HEIGHT);
-    moveWindow("mask", WIDTH, HEIGHT);
-
-    if (waitKey(5)) {
-    }
+    //    if (waitKey(5)) {
+    //        waitKey();
+    //    }
 #endif
+
+    return line;
 }
+
 
 int main(int argc, char *argv[]) {
     VideoCapture cap;
     vector<Point> pts;
-    Mat frame;
+    Mat original, frame, mask;
+    Lines lines;
+
     string filepath = "../";
     string filename = "3.avi";
 
-    TimeLapse tl = TimeLapse(8);
+    LatestInfo latest;
+    latest.reset();
+
+    TimeLapse tl = TimeLapse(9);
     tl.set_tc(1);
 
+    Roi left_mask(false), right_mask(true);
 
     cap.open(filepath + filename, CAP_ANY);
 
@@ -168,24 +225,40 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-
     while (true) {
-        cap >> frame;
+        cap >> original;
 
-        if (frame.empty())
+        if (original.empty())
             break;
 
-        tl.prev_img = frame.clone();
-        detection(tl, frame);
-    }
+        tl.prev_img = original.clone();
+        frame = original.clone();
+
+        frame = adapt_mask(tl, frame, left_mask.mask);
+        lines.push_back(detection(tl, original, frame, latest));
+
+        frame = original.clone();
+
+        frame = adapt_mask(tl, frame, right_mask.mask);
+        lines.push_back(detection(tl, original, frame, latest));
 
 #ifndef DEBUG_MODE
-    destroyAllWindows();
+        show_image(original, lines);
+        if (waitKey(5)) {
+
+        }
+        lines.clear();
 #endif
+
+
+    }
+
 
 #ifdef DEBUG_MODE
     tl.print_info_all();
-    // cout << vi.undetected << endl;
+#else
+    destroyAllWindows();
 #endif
+    // cout << vi.undetected << endl;
     return 0;
 }
