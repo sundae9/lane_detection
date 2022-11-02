@@ -93,19 +93,20 @@ void ROI::updateROI() {
     }
 #endif
 
-    // 동적 roi 갱신
-    if (this->line_info[0].adaptive_ROI_flag && this->line_info[1].adaptive_ROI_flag) {
-        this->adaptive_flag = true;
-        this->updateAdaptiveMask();
-    }
-        // 정적 roi 리셋이 필요한 경우 -> 둘 중 하나라도 0이면 init (둘이 동시에 카운트를 올려줘야 여기 걸리지 않음)
-    else if (this->line_info[0].undetected_cnt == UNDETECTED_STD ||
-             this->line_info[1].undetected_cnt == UNDETECTED_STD) {
+    // 정적 roi 리셋이 필요한 경우 -> 둘 중 하나라도 0이면 init (둘이 동시에 카운트를 올려줘야 여기 걸리지 않음)
+    if (this->line_info[0].undetected_cnt == UNDETECTED_STD ||
+        this->line_info[1].undetected_cnt == UNDETECTED_STD) {
         for (int i = 0; i < 2; i++) {
             this->line_info[i].reset();
         }
         this->initROI();
     }
+    // 동적 roi 갱신
+    if (this->line_info[0].adaptive_ROI_flag && this->line_info[1].adaptive_ROI_flag) {
+        this->adaptive_flag = true;
+        this->updateAdaptiveMask();
+    }
+
 }
 
 #endif //PARK_ROI_HPP
