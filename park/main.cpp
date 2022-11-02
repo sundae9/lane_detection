@@ -1,12 +1,15 @@
 #include <iostream>
 #include <algorithm>
 #include "opencv2/opencv.hpp"
+#include "./header/ROI.hpp"
 
-#define TEST
-#ifdef TEST
+ROI roi;
 
-#include "../common/timer.cpp"
+#ifdef DEBUG
 
+#include "../common/newTimer.cpp"
+
+TimeLapse tl(6);
 #endif
 
 using namespace std;
@@ -14,37 +17,22 @@ using namespace cv;
 
 const string SRC_PREFIX = "../video/";
 
-vector<Point> roi_polygon(4);
-
 // 공통 함수
-void showImage(const string &label, InputArray img, int t = 0) {
+void showImage(const string &label, InputArray img, int t = 0, int x = 0, int y = 0) {
     namedWindow(label, 1);
+    moveWindow(label, x, y);
     imshow(label, img);
     waitKey(t);
 }
 
-// 기울기 => 차선 필터링 할 때 활용
-double getInclination(Point2f p1, Point2f p2) {
-    if (p1.x == p2.x) return 1e5;
-    return (double) (p1.y - p2.y) / (p1.x - p2.x);
-}
-
-// 전처리 단계
-// 1. 이진화
-void thresholdDefault(InputArray frame, OutputArray result, int thresh = 130) {
-    // 1. grayscale로 변환
-    cvtColor(frame, result, COLOR_BGR2GRAY);
-    // 2. 주어진 임계값(default:130)으로 이진화
-    threshold(result, result, thresh, 145, THRESH_BINARY);
-}
-
-// 2. ROI 설정
-void applyStaticROI(InputArray frame, OutputArray result) {
-    // 사다리꼴 영역 설정
-    int row = frame.rows(), col = frame.cols();
-    Mat roi = Mat::zeros(row, col, CV_8U);
-    fillPoly(roi, roi_polygon, 255);
-    bitwise_and(frame, roi, result);
+/**
+ * 기울기 (역수) 구하는 함수 (cotangent)
+ * @param p1 점 1
+ * @param p2 점 2
+ * @return 기울기
+ */
+double getCotangent(Point p1, Point p2) {
+    return (double) (p1.x - p2.x) / (p1.y - p2.y);
 }
 
 /**
@@ -60,42 +48,125 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar c
     }
 }
 
+int calculateX(Point p1, Point p2) {
+    return (p1.x * (p2.y - DEFAULT_ROI_DOWN) - p2.x * (p1.y - DEFAULT_ROI_DOWN)) / (p2.y - p1.y);
+}
+
+/**
+ * 허프 변환으로 검출한 차선 필터링
+ * @param frame
+ * @param lines
+ */
+void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i> &lines) {
+    struct Data {
+        double grad, diff;
+        int idx;
+    };
+
+    Data lane[2];
+
+    // 초기화
+    for (int i = 0; i < 2; i++) {
+        lane[i].grad = roi.line_info[i].get_avg().gradient;
+        lane[i].diff = 2.0;
+        lane[i].idx = -1;
+    }
+
+    int idx = 0, pos;
+    double m;
+
+    for (Vec4i pts: lines) {
+        Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
+        m = getCotangent(p1, p2);
+        if (abs(m) > GRADIENT_STD) {
+            line(frame, p1, p2, Scalar(0, 0, 255), 1, 8);
+            continue;
+        }
+        pos = m < 0 ? 0 : 1; // 왼쪽, 오른쪽 결정
+        if (lane[pos].diff > abs(m - lane[pos].grad)) {
+            lane[pos].diff = abs(m - lane[pos].grad);
+            lane[pos].idx = idx;
+        }
+        drawLines(frame, {pts});
+        idx++;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        if (lane[i].idx == -1) {
+            Avg avg = roi.line_info[i].get_avg();
+            int x1 = avg.coordX;
+            int x2 = avg.coordX - (DEFAULT_ROI_DOWN - DEFAULT_ROI_UP) * avg.gradient;
+
+            line(frame, {x1, DEFAULT_ROI_DOWN}, {x2, DEFAULT_ROI_UP}, Scalar(255, 0, 0), 1, 8);
+
+            roi.line_info[i].not_found();
+        } else {
+            Point p1(lines[lane[i].idx][0], lines[lane[i].idx][1]), p2(lines[lane[i].idx][2], lines[lane[i].idx][3]);
+            line(frame, p1, p2, Scalar(255, 0, 0), 1, 8);
+
+            roi.line_info[i].update_lines({calculateX(p1, p2), getCotangent(p1, p2)});
+
+        }
+    }
+    roi.updateROI();
+}
+
 /**
  * 허프 변환으로 검출된 선들을 필터링해서 그리는 함수
  * @param frame
  * @param lines
  * @return 검출된 라인 수
  */
-bool filterLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
-    double left_max = 0, right_max = 0;
-    bool left = false, right = false;
+void filterLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
+    double left_max = -GRADIENT_STD, right_max = GRADIENT_STD;
+    bool found[2] = {false, false};
     std::vector<Vec4i> lane(2);
-
+    int pos; // 왼쪽 vs 오른쪽
+    double m;
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         // 직선 필터링... (임시)
-        double m = getInclination(p1, p2);
-        if (abs(m) < 0.3) {
-            drawLines(frame, {pts}, Scalar(0, 0, 255));
+        m = getCotangent(p1, p2);
+        // 30도보다 작을 때
+        if (abs(m) > GRADIENT_STD) {
+            line(frame, p1, p2, Scalar(0, 0, 255), 1, 8);
             continue;
         }
-        if (m > 0) {
+        pos = m < 0 ? 0 : 1; // 왼쪽, 오른쪽 결정
+
+        if (m < 0) { //left
             if (m > left_max) {
                 left_max = m;
                 lane[0] = pts;
-                left = true;
+                found[0] = true;
             }
-        } else {
+        } else { // right
             if (m < right_max) {
                 right_max = m;
                 lane[1] = pts;
-                right = true;
+                found[1] = true;
             }
         }
-        drawLines(frame, {pts});
+        line(frame, p1, p2, Scalar(0, 255, 0), 1, 8);
     }
     drawLines(frame, lane, Scalar(255, 0, 0));
-    return !(left | right);
+    for (int i = 0; i < 2; i++) {
+        if (!found[i]) {
+            roi.line_info[i].not_found();
+            continue;
+        }
+        Point p1(lane[i][0], lane[i][1]), p2(lane[i][2], lane[i][3]);
+        roi.line_info[i].update_lines({calculateX(p1, p2), getCotangent(p1, p2)});
+    }
+    roi.updateROI();
+
+#ifdef DEBUG
+    if (!found[0] && !found[1]) { // 둘 다 못 찾았을 경우
+        roi.stat.zero_detected++;
+    } else if (!found[0] || !found[1]) { // 둘 중 하나라도 못 찾았을 경우
+        roi.stat.one_detected++;
+    }
+#endif
 }
 
 void houghLineSegments(InputArray frame, InputOutputArray result) {
@@ -107,71 +178,84 @@ void houghLineSegments(InputArray frame, InputOutputArray result) {
     drawLines(result, lines);
 }
 
-void test(InputArray frame, Video_info &vi) {
-#ifdef TEST
-    TickMeter tm, tm2;
-    int idx = 0;
-    tm.reset();
-    tm2.reset();
-    tm.start();
-    tm2.start();
+void test(InputArray frame) {
+#ifdef DEBUG
+    tl.restart();
 #endif
     // 0. to grayscale
     Mat grayscaled;
     cvtColor(frame, grayscaled, COLOR_BGR2GRAY);
-#ifdef TEST
-    Time_record(tm, vi, idx++, grayscaled);
+#ifdef DEBUG
+    tl.proc_record(grayscaled);
+#ifdef SHOW
+    showImage("gray", grayscaled, 10);
+#endif
 #endif
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
-
-#ifdef TEST
-    Time_record(tm, vi, idx++, grayscaled);
+#ifdef DEBUG
+    tl.proc_record(grayscaled);
 #endif
-//    showImage("grayscaled", grayscaled);
 
     // 2. apply roi
-    Mat roi;
-    applyStaticROI(grayscaled, roi);
-#ifdef TEST
-    Time_record(tm, vi, idx++, roi);
+    Mat roi_applied;
+//    roi.a
+    roi.applyROI(grayscaled, roi_applied);
+#ifdef DEBUG
+    tl.proc_record(roi_applied);
+#ifdef SHOW
+    showImage("roi", roi_applied, 10, FRAME_WIDTH);
 #endif
-//    showImage("roi", roi);
+//    cout << roi.adaptive_flag << '\n';
+
+#endif
 
     // 3. canny
     Mat edge;
-    Canny(roi, edge, 50, 150);
-#ifdef TEST
-    Time_record(tm, vi, idx++, edge);
+    Canny(roi_applied, edge, 50, 150);
+#ifdef DEBUG
+    tl.proc_record(edge);
+    Mat tmp = edge.clone();
+#ifdef SHOW
+    showImage("edge", edge, 10, 0, FRAME_HEIGHT);
 #endif
-
-//    showImage("edge", edge);
-
+#endif
     // 4. hough line
     std::vector<Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
-#ifdef TEST
-    tm.stop();
+#ifdef DEBUG
+    tl.stop_both_timer();
     Mat preview_lines = frame.getMat().clone();
     drawLines(preview_lines, lines);
-    Time_record(tm, vi, idx++, preview_lines);
+    tl.proc_record(preview_lines);
 #endif
 
     //5. filter lines
     Mat result = frame.getMat().clone();
-    vi.undetected += filterLines(result, lines);
-#ifdef TEST
-    Time_record(tm, vi, idx++, result);
+    if (roi.adaptive_flag) {
+        filterLinesWithAdaptiveROI(result, lines);
+    } else {
+        filterLines(result, lines);
+    }
+
+#ifdef DEBUG
+    tl.proc_record(result);
 
     //6. total
-    Time_record(tm2, vi, idx++, result);
+    tl.total_record(frame.getMat(), result);
+
+#ifdef SHOW
+    showImage("result", result, 10, FRAME_WIDTH, FRAME_HEIGHT);
 #endif
-    showImage("result", result, 10);
+#endif
+//    showImage("result", result, 10);
 //    destroyAllWindows();
 }
 
-void videoHandler(const string &file_name, int tc) {
+void videoHandler(const string &file_name) {
     VideoCapture video(file_name);
+    roi = ROI();
+    roi.initROI();
 
     if (!video.isOpened()) {
         cout << "Can't open video\n";
@@ -179,8 +263,6 @@ void videoHandler(const string &file_name, int tc) {
     }
 
     Mat frame;
-    Video_info vi;
-    Initialize_Video_info(vi, tc);
 
     while (true) {
         video >> frame;
@@ -188,15 +270,13 @@ void videoHandler(const string &file_name, int tc) {
         if (frame.empty()) {
             break;
         }
-        vi.total_frame++;
-        vi.prev_img = frame.clone();
-        test(frame, vi);
+#ifdef DEBUG
+        tl.prev_img = frame.clone();
+#endif
+        test(frame);
     }
 
     video.release();
-    Print_info_all(vi, 7);
-    cout << vi.undetected << ' ' << (double) vi.undetected / vi.total_frame * 100 << '\n';
-    cout << vi.total_frame;
 }
 
 void imageHandler(const string &file_name) {
@@ -212,22 +292,29 @@ void imageHandler(const string &file_name) {
 
 int main(int argc, char *argv[]) {
     vector<string> file_list;
-    glob(SRC_PREFIX + "2.avi", file_list);
+    glob(SRC_PREFIX + "*.avi", file_list);
 
     if (file_list.empty()) {
         cout << "can't find image list\n";
         return 1;
     }
 
-    roi_polygon = {{275, 195},
-                   {187, 284},
-                   {461, 284},
-                   {342, 195}};
-
     for (string &file_name: file_list) {
 //        imageHandler(file_name);
-        videoHandler(file_name, atoi(argv[1]));
+#ifdef DEBUG
+        tl = TimeLapse(6);
+        tl.set_tc(1);
+#endif
+        videoHandler(file_name);
+#ifdef DEBUG
+//        tl.print_info_all();
+        //        cout << "static ROI\n";
+        //        cout << file_name << " | " << roi.stat.staticROI << " | "
+        //             << (double) roi.stat.staticROI / tl.total_frame * 100 << "%\n";
+//        cout << "zero detected\n";
+        cout << file_name << " | " << roi.stat.zero_detected << " | " << tl.total_frame << " | "
+             << (double) roi.stat.zero_detected / tl.total_frame * 100 << "%\n";
+#endif
     }
-
     return 0;
 }
