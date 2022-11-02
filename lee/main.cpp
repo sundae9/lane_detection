@@ -17,10 +17,10 @@ using namespace std;
 using namespace cv;
 
 // DEBUG FLAG
-//#define DEBUG_MODE
+#define DEBUG_MODE
 
 // SHOW FLAG
-#define SHOW_MODE
+//#define SHOW_MODE
 
 #define WIDTH 640
 #define HEIGHT 360
@@ -141,7 +141,6 @@ void show_image(Mat original, const Lines &lines, Mat mask) {
 
     roi.setTo(Scalar(0), mask);
 
-
     imshow("original", original);
     imshow("dst", dst);
     imshow("roi", roi);
@@ -164,7 +163,6 @@ Mat adapt_mask(TimeLapse &tl, const Mat &frame, Mat mask) {
     Mat resize_frame, gray_frame, binarization;
 
 #ifdef DEBUG_MODE
-    tl.restart();
     tl.proc_record(frame);
 #endif
 
@@ -255,7 +253,6 @@ Line detection(TimeLapse &tl, const Mat &original, const Mat &frame, LatestInfo 
     return line;
 }
 
-
 /**
  * @brief 라인 정보를 입력받아, 사다리꼴의 밑변에 접하는 좌표와 기울기를 Line_info 구조체로 바꾸어 반환
  * @param line 라인 정보, 빈 라인이라면 {0,0,0,0}
@@ -279,7 +276,6 @@ Line_info info_line(Line line) {
 void check_valid_line(const Line &line, Roi &roi) {
     if (line == non_line) {  // 라인이 존재하지 않음
         roi.latest.not_found();
-        cout << line << " there is no line" << endl;
         return;
     }
 
@@ -287,9 +283,8 @@ void check_valid_line(const Line &line, Roi &roi) {
 
     if (roi.is_right) {
         if (line_info.gradient > 0) line_info.gradient = line_info.gradient * -1;
-    } else if (line_info.gradient < 0) line_info.gradient = line_info.gradient * -1;
-
-    cout << "Line info " << line_info.coordX << " " << line_info.gradient << endl;
+    } else if (line_info.gradient < 0)
+        line_info.gradient = line_info.gradient * -1;
 
     roi.latest.update_lines(line_info);
 }
@@ -303,10 +298,13 @@ int main(int argc, char *argv[]) {
     Line line;
 
     string filepath = "./";
-    string filename = "2.avi";
+    string filename = to_string(atoi(argv[1]) + 1) + ".avi";
 
     TimeLapse tl = TimeLapse(9);
-    tl.set_tc(1);
+    TimeLapse tl2 = TimeLapse(9);
+
+    tl.set_tc(atoi(argv[1]));
+    tl2.set_tc(atoi(argv[1]));
 
     Roi left_mask(false), right_mask(true);
 
@@ -326,8 +324,11 @@ int main(int argc, char *argv[]) {
         tl.prev_img = original.clone();
         frame = original.clone();
 
+
         // 좌측 ROI 마스킹 및 디텍팅 후 큐에 저장
         left_mask.set_mask();
+        tl.restart();
+
         frame = adapt_mask(tl, frame, left_mask.mask);
         line = detection(tl, original, frame, left_mask.latest);
         lines.push_back(line);
@@ -338,25 +339,26 @@ int main(int argc, char *argv[]) {
         frame = original.clone();
 
         right_mask.set_mask();
-        frame = adapt_mask(tl, frame, right_mask.mask);
-        line = detection(tl, original, frame, right_mask.latest);
+        tl2.restart();
+        frame = adapt_mask(tl2, frame, right_mask.mask);
+        line = detection(tl2, original, frame, right_mask.latest);
         lines.push_back(line);
 
         check_valid_line(line, right_mask);
 
-        left_mask.latest.print_all();
-        right_mask.latest.print_all();
+        //        left_mask.latest.print_all();
+        //        right_mask.latest.print_all();
 
-//        if (left_mask.latest.adaptive_ROI_flag && right_mask.latest.adaptive_ROI_flag) {
-//            waitKey();
-//        }
+        //        if (left_mask.latest.adaptive_ROI_flag && right_mask.latest.adaptive_ROI_flag) {
+        //            waitKey();
+        //        }
 
         Mat mask_area;
         bitwise_and(left_mask.mask, right_mask.mask, mask_area);
 #ifdef SHOW_MODE
         show_image(original, lines, mask_area);
         if (waitKey(5)) {
-//            waitKey();
+            //            waitKey();
         }
 #endif
         lines.clear();
@@ -364,6 +366,8 @@ int main(int argc, char *argv[]) {
 
 #ifdef DEBUG_MODE
     tl.print_info_all();
+    cout << "\n\n";
+    tl2.print_info_all();
 #else
     destroyAllWindows();
 #endif

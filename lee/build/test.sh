@@ -1,11 +1,15 @@
 #!/bin/bash
 
+for ((vara=0;vara <= $2;vara++));
+do
+	mkdir ../result/tmp/proc$vara
+done
+
 for ((var=0; var < $1; var++));
 do
-#	mkdir ../result/tmp/$var
-	mkdir ../result/tmp/proc$var
-#	./lee $var > ../result/tmp/test$var.txt
+	
+	./main $var > ../result/tmp/test$var.txt
 	echo "tc $var completed"
 done
 
-#echo $1 | python3 make_csv.py
+echo $1 | python3 make_csv.py
