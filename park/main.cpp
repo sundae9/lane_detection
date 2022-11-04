@@ -1,5 +1,4 @@
 #include <iostream>
-#include <algorithm>
 #include "opencv2/opencv.hpp"
 #include "./header/ROI.hpp"
 
@@ -48,6 +47,12 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar c
     }
 }
 
+/**
+ * x좌표 계산
+ * @param p1
+ * @param p2
+ * @return
+ */
 int calculateX(Point p1, Point p2) {
     return (p1.x * (p2.y - DEFAULT_ROI_DOWN) - p2.x * (p1.y - DEFAULT_ROI_DOWN)) / (p2.y - p1.y);
 }
@@ -83,11 +88,11 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
             continue;
         }
         pos = m < 0 ? 0 : 1; // 왼쪽, 오른쪽 결정
-        if (lane[pos].diff > abs(m - lane[pos].grad)) {
+        if (abs(m - lane[pos].grad) < lane[pos].diff) {
             lane[pos].diff = abs(m - lane[pos].grad);
             lane[pos].idx = idx;
         }
-        drawLines(frame, {pts});
+        line(frame, p1, p2, Scalar(0, 255, 0), 1, 8);
         idx++;
     }
 
@@ -95,7 +100,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
         if (lane[i].idx == -1) {
             Avg avg = roi.line_info[i].get_avg();
             int x1 = avg.coordX;
-            int x2 = avg.coordX - (DEFAULT_ROI_DOWN - DEFAULT_ROI_UP) * avg.gradient;
+            int x2 = avg.coordX - (DEFAULT_ROI_HEIGHT) * avg.gradient;
 
             line(frame, {x1, DEFAULT_ROI_DOWN}, {x2, DEFAULT_ROI_UP}, Scalar(255, 0, 0), 1, 8);
 
@@ -105,7 +110,6 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
             line(frame, p1, p2, Scalar(255, 0, 0), 1, 8);
 
             roi.line_info[i].update_lines({calculateX(p1, p2), getCotangent(p1, p2)});
-
         }
     }
     roi.updateROI();
@@ -169,15 +173,6 @@ void filterLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
 #endif
 }
 
-void houghLineSegments(InputArray frame, InputOutputArray result) {
-    Mat edge;
-    Canny(frame, edge, 50, 150);
-//    showImage("edge", edge);
-    std::vector<Vec4i> lines;
-    HoughLinesP(edge, lines, 1, CV_PI / 180, 0, 100, 200);
-    drawLines(result, lines);
-}
-
 void test(InputArray frame) {
 #ifdef DEBUG
     tl.restart();
@@ -227,6 +222,7 @@ void test(InputArray frame) {
     tl.stop_both_timer();
     Mat preview_lines = frame.getMat().clone();
     drawLines(preview_lines, lines);
+
     tl.proc_record(preview_lines);
 #endif
 
@@ -245,7 +241,7 @@ void test(InputArray frame) {
     tl.total_record(frame.getMat(), result);
 
 #ifdef SHOW
-    showImage("result", result, 10, FRAME_WIDTH, FRAME_HEIGHT);
+    showImage("result", result, 0, FRAME_WIDTH, FRAME_HEIGHT);
 #endif
 #endif
 //    showImage("result", result, 10);
@@ -279,16 +275,6 @@ void videoHandler(const string &file_name) {
     video.release();
 }
 
-void imageHandler(const string &file_name) {
-    Mat frame = imread(file_name);
-    if (frame.empty()) {
-        cout << "Can't open image\n";
-        return;
-    }
-
-//    test(frame);
-//    destroyAllWindows();
-}
 
 int main(int argc, char *argv[]) {
     vector<string> file_list;
@@ -307,13 +293,13 @@ int main(int argc, char *argv[]) {
 #endif
         videoHandler(file_name);
 #ifdef DEBUG
-//        tl.print_info_all();
+        tl.print_info_all();
         //        cout << "static ROI\n";
-        //        cout << file_name << " | " << roi.stat.staticROI << " | "
-        //             << (double) roi.stat.staticROI / tl.total_frame * 100 << "%\n";
+//        cout << file_name << " | " << roi.stat.staticROI << " | "
+//             << (double) roi.stat.staticROI / tl.total_frame * 100 << "%\n";
 //        cout << "zero detected\n";
-        cout << file_name << " | " << roi.stat.zero_detected << " | " << tl.total_frame << " | "
-             << (double) roi.stat.zero_detected / tl.total_frame * 100 << "%\n";
+//        cout << file_name << " | " << roi.stat.zero_detected << " | " << tl.total_frame << " | "
+//             << (double) roi.stat.zero_detected / tl.total_frame * 100 << "%\n";
 #endif
     }
     return 0;
