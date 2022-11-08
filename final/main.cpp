@@ -153,51 +153,62 @@ void test(InputArray frame) {
     // 0. to grayscale
     Mat grayscaled;
     cvtColor(frame, grayscaled, COLOR_BGR2GRAY);
-#ifdef DEBUG
-    tl.stop_both_timer();
-    Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
-    tl.proc_record(grayscaled); // 0. to grayscale
 
 #ifdef SHOW
-    showImage("gray", grayscaled, 5);
-#endif // SHOW
 
+#ifdef DEBUG
+    tl.stop_both_timer();
 #endif // DEBUG
 
+    showImage("gray", grayscaled, 5);
+    Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
+#endif // SHOW
+
+#ifdef DEBUG
+    tl.proc_record(grayscaled); // 0. to grayscale
+#endif // DEBUG
 
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
+
 #ifdef DEBUG
     tl.proc_record(grayscaled); // 1. 주어진 임계값(default:130)으로 이진화
 #endif
 
     // 2. apply roi
     Mat roi_applied;
-    roi.applyROI(grayscaled, roi_applied); // 2. apply roi
+    roi.applyROI(grayscaled, roi_applied);
+
+#ifdef SHOW
 
 #ifdef DEBUG
     tl.stop_both_timer();
-    roi.applyROI(show_roi, show_roi); // roi 화면 출력용
-    tl.proc_record(roi_applied);
+#endif // DEBUG
 
-#ifdef SHOW
+    roi.applyROI(show_roi, show_roi); // roi 화면 출력용
     showImage("roi", show_roi, 5, FRAME_WIDTH);
 #endif // SHOW
 
+
+#ifdef DEBUG
+    tl.proc_record(roi_applied); // 2. apply roi
 #endif // DEBUG
 
     // 3. canny
     Mat edge;
     Canny(roi_applied, edge, 50, 150);
 
-#ifdef DEBUG
-    tl.proc_record(edge); // 3. canny
-    Mat tmp = edge.clone();
-
 #ifdef SHOW
+
+#ifdef DEBUG
+    tl.stop_both_timer();
+#endif
+
     showImage("edge", edge, 5, 0, FRAME_HEIGHT);
 #endif // SHOW
 
+#ifdef DEBUG
+    tl.proc_record(edge); // 3. canny
 #endif // DEBUG
 
     // 4. hough line
@@ -206,8 +217,9 @@ void test(InputArray frame) {
 
 #ifdef DEBUG
     tl.stop_both_timer();
-    Mat preview_lines = frame.getMat().clone(); // 검출 선분 화면 출력용
+    Mat preview_lines = frame.getMat().clone(); // 필터링 전 검출한 선분 그리기
     drawLines(preview_lines, lines);
+
     tl.proc_record(preview_lines); // 4. hough line
 #endif
 
@@ -215,13 +227,18 @@ void test(InputArray frame) {
     Mat result = frame.getMat().clone();
     filterLinesWithAdaptiveROI(result, lines);
 
+#ifdef SHOW
+
+#ifdef DEBUG
+    tl.stop_both_timer();
+#endif // DEBUG
+
+    showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
+#endif // SHOW
+
 #ifdef DEBUG
     tl.proc_record(result); // 5. filter lines
     tl.total_record(frame.getMat(), result); // 6. total
-
-#ifdef SHOW
-    showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
-#endif // SHOW
 #endif // DEBUG
 }
 
@@ -269,7 +286,9 @@ int main(int argc, char *argv[]) {
         tl.set_tc(1);
 //        tl.set_tc(stoi(argv[1]));
 #endif // DEBUG
+
         videoHandler(file_name);
+
 #ifdef DEBUG
         tl.print_info_all();
         //        cout << "static ROI\n";
