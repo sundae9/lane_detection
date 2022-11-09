@@ -14,11 +14,12 @@
 #define DEFAULT_ROI_HEIGHT (DEFAULT_ROI_DOWN - DEFAULT_ROI_UP) // ROI 높이
 
 // 기타 변수
-#define GRADIENT_STD 1.73 // cotanent(30 deg) = 1.73
+#define GRADIENT_STD 2 // cotanent(30 deg) = 1.73
 
 // MODE
-#define SHOW //imshow 활성화
+#define SHOW //imshow  활성화
 #define DEBUG // 출력 문구
 #define GRAPHIC
+//#define SAVE
 
 #endif //PARK_CONSTANT_HPP
