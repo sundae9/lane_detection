@@ -11,7 +11,7 @@
 #define DX 15 // 2*DX = 동적 ROi 폭
 #define DEFAULT_ROI_UP 195 // ROI 상단 y값
 #define DEFAULT_ROI_DOWN 284 // ROI 하단 y값
-#define DEFAULT_ROI_HEIGHT DEFAULT_ROI_DOWN - DEFAULT_ROI_UP // ROI 높이
+#define DEFAULT_ROI_HEIGHT (DEFAULT_ROI_DOWN - DEFAULT_ROI_UP) // ROI 높이
 
 // 기타 변수
 #define GRADIENT_STD 1.73 // cotanent(30 deg) = 1.73
