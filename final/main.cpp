@@ -12,6 +12,10 @@ TimeLapse tl(6); // 시간 측정
 
 #endif
 
+#ifdef SAVE
+cv::VideoWriter video_writer;
+#endif //SAVE
+
 using namespace std;
 using namespace cv;
 
@@ -73,7 +77,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
 
     // 초기화
     for (int i = 0; i < 2; i++) {
-        lane[i].grad = roi.line_info[i].adaptive_ROI_flag ? roi.line_info[i].get_avg().gradient : 0;
+        lane[i].grad = roi.line_info[i].adaptive_ROI_flag ? roi.line_info[i].line.gradient : 0;
         lane[i].diff = 2.0;
         lane[i].idx = -1;
     }
@@ -118,9 +122,9 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
             }
 
             // 기존 값으로 차로 표기
-            Avg avg = roi.line_info[i].get_avg();
-            int x1 = avg.coordX;
-            int x2 = avg.coordX - DEFAULT_ROI_HEIGHT * avg.gradient;
+            Line_info prev = roi.line_info[i].line;
+            int x1 = prev.coordX;
+            int x2 = x1 - DEFAULT_ROI_HEIGHT * prev.gradient;
             line(frame, {x1, DEFAULT_ROI_DOWN}, {x2, DEFAULT_ROI_UP}, Scalar(255, 0, 0), 1, 8);
         } else {
             // 차선 검출 성공
@@ -162,13 +166,19 @@ void test(InputArray frame) {
     showImage("gray", grayscaled, 5);
     Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
 #endif // SHOW
+#ifdef SAVE
+    Mat temp1 = grayscaled;
+#ifndef SHOW
+    Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
+#endif //SHOW
+#endif //SAVE
 
 #ifdef DEBUG
     tl.proc_record(grayscaled); // 0. to grayscale
 #endif // DEBUG
 
     // 1. 주어진 임계값(default:130)으로 이진화
-    threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
+    threshold(grayscaled, grayscaled, 150, 145, THRESH_BINARY);
 
 #ifdef DEBUG
     tl.proc_record(grayscaled); // 1. 주어진 임계값(default:130)으로 이진화
@@ -187,7 +197,13 @@ void test(InputArray frame) {
     roi.applyROI(show_roi, show_roi); // roi 화면 출력용
     showImage("roi", show_roi, 5, FRAME_WIDTH);
 #endif // SHOW
-
+#ifdef SAVE
+#ifndef SHOW
+    roi.applyROI(show_roi, show_roi);
+#endif //SHOW
+    hconcat(temp1, show_roi, temp1);
+    cvtColor(temp1, temp1, COLOR_GRAY2BGR);
+#endif //SAVE
 
 #ifdef DEBUG
     tl.proc_record(roi_applied); // 2. apply roi
@@ -205,14 +221,17 @@ void test(InputArray frame) {
 
     showImage("edge", edge, 5, 0, FRAME_HEIGHT);
 #endif // SHOW
-
+#ifdef SAVE
+    Mat temp2;
+    cvtColor(edge, temp2, COLOR_GRAY2BGR);
+#endif //SAVE
 #ifdef DEBUG
     tl.proc_record(edge); // 3. canny
 #endif // DEBUG
 
     // 4. hough line
     std::vector <Vec4i> lines;
-    HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
+    HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 40, 40);
 
 #ifdef DEBUG
     tl.stop_both_timer();
@@ -240,6 +259,11 @@ void test(InputArray frame) {
     tl.proc_record(result); // 5. filter lines
     tl.total_record(frame.getMat(), result); // 6. total
 #endif // DEBUG
+#ifdef SAVE
+    hconcat(temp2, result, temp2);
+    vconcat(temp1, temp2, temp1);
+    video_writer << temp1;
+#endif //SAVE
 }
 
 void videoHandler(const string &file_name) {
@@ -285,7 +309,14 @@ int main(int argc, char *argv[]) {
         tl.set_tc(1);
 //        tl.set_tc(stoi(argv[1]));
 #endif // DEBUG
-
+#ifdef SAVE
+        video_writer.open("../result/result1.mp4", VideoWriter::fourcc('a', 'v', 'c', '1'), 30,
+                          Size(2 * FRAME_WIDTH, 2 * FRAME_HEIGHT),
+                          true);
+#endif // SAVE
+#ifdef SHOW
+        if (file_name == SRC_PREFIX + "2.avi") continue;
+#endif //SHOW
         videoHandler(file_name);
 
 #ifdef DEBUG
