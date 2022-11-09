@@ -11,7 +11,6 @@ class ROI {
 public:
     // 좌우 하나씩
     std::vector <cv::Point> default_ROI[2]; // roi 영역
-    bool adaptive_flag[2]; // true: 동적 roi 적용중
     cv::Mat ROI_mask[2];
     LatestInfo line_info[2];
 
@@ -44,19 +43,18 @@ ROI::ROI() {
     for (int i = 0; i < 2; i++) {
         default_ROI[i].resize(4);
         line_info[i].reset();
-        adaptive_flag[i] = false;
     }
     default_ROI[0] = {
-            {275,      DEFAULT_ROI_UP},
-            {275 + 50, DEFAULT_ROI_UP},
-            {187 + 50, DEFAULT_ROI_DOWN},
-            {187,      DEFAULT_ROI_DOWN}
+            {100, DEFAULT_ROI_UP},
+            {320, DEFAULT_ROI_UP},
+            {320, DEFAULT_ROI_DOWN},
+            {100, DEFAULT_ROI_DOWN}
     };
     default_ROI[1] = {
-            {342 - 50, DEFAULT_ROI_UP},
-            {342,      DEFAULT_ROI_UP},
-            {455,      DEFAULT_ROI_DOWN},
-            {455 - 50, DEFAULT_ROI_DOWN}
+            {320, DEFAULT_ROI_UP},
+            {540, DEFAULT_ROI_UP},
+            {540, DEFAULT_ROI_DOWN},
+            {320, DEFAULT_ROI_DOWN}
     };
 
     for (int i = 0; i < 2; i++) {
@@ -74,7 +72,6 @@ ROI::ROI() {
 void ROI::initROI(int pos) {
     this->ROI_mask[pos] = cv::Mat::zeros(FRAME_ROWS, FRAME_COLS, CV_8U);
     cv::fillPoly(this->ROI_mask[pos], this->default_ROI[pos], 255);
-    adaptive_flag[pos] = false;
 }
 
 /**
@@ -94,7 +91,7 @@ void ROI::applyROI(cv::InputArray frame, cv::OutputArray result) {
 void ROI::updateAdaptiveMask(int pos) {
     // 동적 roi mask 갱신
     this->ROI_mask[pos] = cv::Mat::zeros(FRAME_ROWS, FRAME_COLS, CV_8U);
-    Avg avg = line_info[pos].get_avg();
+    Line_info avg = line_info[pos].line;
     std::vector <cv::Point> polygon;
 
     int x1 = avg.coordX; // roi 밑변과의 교차점
