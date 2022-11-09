@@ -9,10 +9,11 @@
 
 class ROI {
 public:
-    std::vector <cv::Point> default_ROI;
-    bool adaptive_flag; // true: 동적 roi 적용중
-    cv::Mat ROI_mask; // and 연산할 mask 이미지
-    LatestInfo line_info[2]; // 왼쪽, 오른쪽
+    // 좌우 하나씩
+    std::vector <cv::Point> default_ROI[2]; // roi 영역
+    bool adaptive_flag[2]; // true: 동적 roi 적용중
+    cv::Mat ROI_mask[2];
+    LatestInfo line_info[2];
 
 #ifdef DEBUG
     // ROI 관련 통계
@@ -26,9 +27,9 @@ public:
 
     ROI();
 
-    void initROI();
+    void initROI(int pos);
 
-    void updateAdaptiveMask();
+    void updateAdaptiveMask(int pos);
 
     void applyROI(cv::InputArray frame, cv::OutputArray result);
 
@@ -40,16 +41,28 @@ public:
  * 기본 생성자
  */
 ROI::ROI() {
-    default_ROI.resize(4);
-    default_ROI = {
-            {275, DEFAULT_ROI_UP},
-            {342, DEFAULT_ROI_UP},
-            {461, DEFAULT_ROI_DOWN},
-            {187, DEFAULT_ROI_DOWN}
-    };
     for (int i = 0; i < 2; i++) {
+        default_ROI[i].resize(4);
         line_info[i].reset();
+        adaptive_flag[i] = false;
     }
+    default_ROI[0] = {
+            {275,      DEFAULT_ROI_UP},
+            {275 + 50, DEFAULT_ROI_UP},
+            {187 + 50, DEFAULT_ROI_DOWN},
+            {187,      DEFAULT_ROI_DOWN}
+    };
+    default_ROI[1] = {
+            {342 - 50, DEFAULT_ROI_UP},
+            {342,      DEFAULT_ROI_UP},
+            {455,      DEFAULT_ROI_DOWN},
+            {455 - 50, DEFAULT_ROI_DOWN}
+    };
+
+    for (int i = 0; i < 2; i++) {
+        initROI(i);
+    }
+
 #ifdef DEBUG
     this->stat = {0, 0, 0, 0};
 #endif
@@ -58,10 +71,10 @@ ROI::ROI() {
 /**
  * roi 초기화 (정적 roi로 설정)
  */
-void ROI::initROI() {
-    this->ROI_mask = cv::Mat::zeros(FRAME_ROWS, FRAME_COLS, CV_8U);
-    cv::fillPoly(this->ROI_mask, this->default_ROI, 255);
-    adaptive_flag = false;
+void ROI::initROI(int pos) {
+    this->ROI_mask[pos] = cv::Mat::zeros(FRAME_ROWS, FRAME_COLS, CV_8U);
+    cv::fillPoly(this->ROI_mask[pos], this->default_ROI[pos], 255);
+    adaptive_flag[pos] = false;
 }
 
 /**
@@ -70,33 +83,29 @@ void ROI::initROI() {
  * @param result 결과 받아갈 이미지
  */
 void ROI::applyROI(cv::InputArray frame, cv::OutputArray result) {
-    cv::bitwise_and(frame, this->ROI_mask, result);
+    cv::Mat mask;
+    cv::bitwise_or(this->ROI_mask[0], this->ROI_mask[1], mask);
+    cv::bitwise_and(frame, mask, result);
 }
 
 /**
  * latest_info를 이용해서 동적 마스킹 영역 갱신
  */
-void ROI::updateAdaptiveMask() {
-    // 왼쪽 차선, 오른쪽 차선을 위한 마스크 생성
-    cv::Mat mask[2];
+void ROI::updateAdaptiveMask(int pos) {
+    // 동적 roi mask 갱신
+    this->ROI_mask[pos] = cv::Mat::zeros(FRAME_ROWS, FRAME_COLS, CV_8U);
+    Avg avg = line_info[pos].get_avg();
+    std::vector <cv::Point> polygon;
 
-    for (int i = 0; i < 2; i++) {
-        mask[i] = cv::Mat::zeros(FRAME_ROWS, FRAME_COLS, CV_8U);
-        Avg avg = line_info[i].get_avg();
-        std::vector <cv::Point> polygon;
-
-        int x1 = avg.coordX; // roi 밑변과의 교차점
-        int x2 = avg.coordX - (DEFAULT_ROI_HEIGHT) * avg.gradient; // roi 윗변과의 교차점
-        polygon.assign({
-                               {x1 - DX, DEFAULT_ROI_DOWN},
-                               {x1 + DX, DEFAULT_ROI_DOWN},
-                               {x2 + DX, DEFAULT_ROI_UP},
-                               {x2 - DX, DEFAULT_ROI_UP}
-                       });
-        cv::fillPoly(mask[i], polygon, 255);
-    }
-    // 왼쪽, 오른쪽 마스크 합치기
-    bitwise_or(mask[0], mask[1], this->ROI_mask);
+    int x1 = avg.coordX; // roi 밑변과의 교차점
+    int x2 = x1 - (DEFAULT_ROI_HEIGHT) * avg.gradient; // roi 윗변과의 교차점
+    polygon.assign({
+                           {x1 - DX, DEFAULT_ROI_DOWN},
+                           {x1 + DX, DEFAULT_ROI_DOWN},
+                           {x2 + DX, DEFAULT_ROI_UP},
+                           {x2 - DX, DEFAULT_ROI_UP}
+                   });
+    cv::fillPoly(this->ROI_mask[pos], polygon, 255);
 }
 
 /**
@@ -112,21 +121,16 @@ void ROI::updateROI() {
         this->stat.staticROI++;
     }
 #endif
-
-    // 정적 roi 리셋이 필요한 경우
-    if (this->line_info[0].undetected_cnt == UNDETECTED_STD ||
-        this->line_info[1].undetected_cnt == UNDETECTED_STD) {
-        for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 2; i++) {
+        // 1. 정적 roi 리셋이 필요한 경우
+        if (this->line_info[i].undetected_cnt == UNDETECTED_STD) {
             this->line_info[i].reset();
+            this->initROI(i);
+        } else if (this->line_info[i].undetected_cnt == 0 && this->line_info[i].adaptive_ROI_flag) {
+            // 2. 동적 roi 갱신
+            this->updateAdaptiveMask(i);
         }
-        this->initROI();
     }
-    // 동적 roi 갱신
-    if (this->line_info[0].adaptive_ROI_flag && this->line_info[1].adaptive_ROI_flag) {
-        this->adaptive_flag = true;
-        this->updateAdaptiveMask();
-    }
-
 }
 
 #endif //PARK_ROI_HPP

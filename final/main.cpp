@@ -73,7 +73,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
 
     // 초기화
     for (int i = 0; i < 2; i++) {
-        lane[i].grad = roi.adaptive_flag ? roi.line_info[i].get_avg().gradient : 0;
+        lane[i].grad = roi.line_info[i].adaptive_ROI_flag ? roi.line_info[i].get_avg().gradient : 0;
         lane[i].diff = 2.0;
         lane[i].idx = -1;
     }
@@ -113,37 +113,36 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
             roi.line_info[i].not_found();
 
             // 동적 roi...
-            if (!roi.adaptive_flag) {
+            if (!roi.line_info[i].adaptive_ROI_flag) {
                 continue;
             }
 
             // 기존 값으로 차로 표기
             Avg avg = roi.line_info[i].get_avg();
             int x1 = avg.coordX;
-            int x2 = avg.coordX - (DEFAULT_ROI_HEIGHT) * avg.gradient;
-
+            int x2 = avg.coordX - DEFAULT_ROI_HEIGHT * avg.gradient;
             line(frame, {x1, DEFAULT_ROI_DOWN}, {x2, DEFAULT_ROI_UP}, Scalar(255, 0, 0), 1, 8);
         } else {
             // 차선 검출 성공
             Point p1(lines[lane[i].idx][0], lines[lane[i].idx][1]), p2(lines[lane[i].idx][2], lines[lane[i].idx][3]);
             // 파란색으로 표기
             line(frame, p1, p2, Scalar(255, 0, 0), 1, 8);
-
             roi.line_info[i].update_lines({calculateX1(p1, p2), getCotangent(p1, p2)});
         }
     }
-    roi.updateROI();
-
 #ifdef DEBUG
-    if (roi.adaptive_flag) { // 동적 roi - 어쨌든 차선 결정됨
-        return;
-    }
-    if (lane[0].idx != -1 && lane[1].idx != -1) { // 둘 다 못 찾았을 경우
+    if (!roi.line_info[0].adaptive_ROI_flag && !roi.line_info[1].adaptive_ROI_flag && lane[0].idx != -1 &&
+        lane[1].idx != -1) { // 둘 다 못 찾았을 경우
         roi.stat.zero_detected++;
-    } else if (lane[0].idx != -1 || lane[1].idx != -1) { // 둘 중 하나라도 못 찾았을 경우
+    } else if ((!roi.line_info[0].adaptive_ROI_flag && lane[0].idx != -1) ||
+               (!roi.line_info[1].adaptive_ROI_flag && lane[1].idx != -1)) { // 둘 중 하나라도 못 찾았을 경우
         roi.stat.one_detected++;
     }
+//    roi.line_info[0].print_all();
+//    roi.line_info[1].print_all();
 #endif
+
+    roi.updateROI();
 }
 
 void test(InputArray frame) {
@@ -234,6 +233,7 @@ void test(InputArray frame) {
 #endif // DEBUG
 
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
+//    waitKey(0);
 #endif // SHOW
 
 #ifdef DEBUG
@@ -251,7 +251,6 @@ void videoHandler(const string &file_name) {
     }
 
     roi = ROI();
-    roi.initROI();
 
     Mat frame;
 
