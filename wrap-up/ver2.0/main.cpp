@@ -15,7 +15,7 @@ TimeLapse tl(6); // 시간 측정
 using namespace std;
 using namespace cv;
 
-const string SRC_PREFIX = "../video/";
+const string SRC_PREFIX = "../../video/";
 
 // 디버깅 용 이미지 출력 함수
 void showImage(const string &label, InputArray img, int t = 0, int x = 0, int y = 0) {
