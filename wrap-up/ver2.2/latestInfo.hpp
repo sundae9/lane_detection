@@ -36,7 +36,7 @@ void LatestInfo::update_lines(Line_info li) {
     }
     // 정보 갱신
     this->line.coordX = (4 * this->line.coordX + li.coordX) / 5;
-    this->line.gradient = (4 * this->line.gradient + this->line.gradient) / 5;
+    this->line.gradient = (4 * this->line.gradient + li.gradient) / 5;
 
     // 적응형 roi on
     if (!this->adaptive_ROI_flag && ++(this->que_length) == QUE_MAX_SIZE) {
