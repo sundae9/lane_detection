@@ -53,16 +53,6 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar c
 }
 
 /**
- * x1 좌표 계산
- * @param p1
- * @param p2
- * @return 검출 선분 & roi 밑변 교차점 - x 좌표
- */
-int calculateX1(Point p1, Point p2) {
-    return (p1.x * (p2.y - DEFAULT_ROI_HEIGHT) - p2.x * (p1.y - DEFAULT_ROI_HEIGHT)) / (p2.y - p1.y);
-}
-
-/**
  * 허프 변환으로 검출한 차선 필터링
  * @param frame
  * @param lines
