@@ -9,10 +9,13 @@
 
 // roi 설정 값
 #define DX 15 // 2*DX = 동적 ROi 폭
+#define DEFAULT_ROI_LEFT 100 // ROI 좌측 x값
+#define DEFAULT_ROI_RIGHT 540 // ROI 우측 x값
 #define DEFAULT_ROI_UP 195 // ROI 상단 y값
 #define DEFAULT_ROI_DOWN 284 // ROI 하단 y값
+#define DEFAULT_ROI_CENTER 320
 #define DEFAULT_ROI_HEIGHT (DEFAULT_ROI_DOWN - DEFAULT_ROI_UP) // ROI 높이
-
+#define DEFAULT_ROI_WIDTH (DEFAULT_ROI_RIGHT - DEFAULT_ROI_LEFT)
 // 기타 변수
 #define GRADIENT_STD 2 // cotanent(30 deg) = 1.73
 

@@ -45,7 +45,7 @@ double getCotangent(Point p1, Point p2) {
  * @param lines 그릴 선분들
  * @param color 색
  */
-void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
+void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         line(frame, p1, p2, color, 1, 8);
@@ -59,7 +59,7 @@ void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar 
  * @return 검출 선분 & roi 밑변 교차점 - x 좌표
  */
 int calculateX1(Point p1, Point p2) {
-    return (p1.x * (p2.y - DEFAULT_ROI_DOWN) - p2.x * (p1.y - DEFAULT_ROI_DOWN)) / (p2.y - p1.y);
+    return (p1.x * (p2.y - DEFAULT_ROI_HEIGHT) - p2.x * (p1.y - DEFAULT_ROI_HEIGHT)) / (p2.y - p1.y);
 }
 
 /**
@@ -67,7 +67,7 @@ int calculateX1(Point p1, Point p2) {
  * @param frame
  * @param lines
  */
-void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i> &lines) {
+void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i> &lines) {
     struct Data {
         double grad, diff;
         int idx;
@@ -125,7 +125,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
             Line_info prev = roi.line_info[i].line;
             int x1 = prev.coordX;
             int x2 = x1 - DEFAULT_ROI_HEIGHT * prev.gradient;
-            line(frame, {x1, DEFAULT_ROI_DOWN}, {x2, DEFAULT_ROI_UP}, Scalar(255, 0, 0), 1, 8);
+            line(frame, {x1, DEFAULT_ROI_HEIGHT}, {x2, 0}, Scalar(255, 0, 0), 1, 8);
         } else {
             // 차선 검출 성공
             Point p1(lines[lane[i].idx][0], lines[lane[i].idx][1]), p2(lines[lane[i].idx][2], lines[lane[i].idx][3]);
@@ -153,9 +153,10 @@ void test(InputArray frame) {
 #ifdef DEBUG
     tl.restart(); // 타이머 재설정
 #endif
+    Mat road_area = frame.getMat()(Range(DEFAULT_ROI_UP, DEFAULT_ROI_DOWN), Range(DEFAULT_ROI_LEFT, DEFAULT_ROI_RIGHT));
     // 0. to grayscale
     Mat grayscaled;
-    cvtColor(frame, grayscaled, COLOR_BGR2GRAY);
+    cvtColor(road_area, grayscaled, COLOR_BGR2GRAY);
 
 #ifdef SHOW
 
@@ -230,7 +231,7 @@ void test(InputArray frame) {
 #endif // DEBUG
 
     // 4. hough line
-    std::vector <Vec4i> lines;
+    std::vector<Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 40, 40);
 
 #ifdef DEBUG
@@ -242,7 +243,7 @@ void test(InputArray frame) {
 #endif
 
     // 5. filter lines
-    Mat result = frame.getMat().clone();
+    Mat result = road_area.clone();
     filterLinesWithAdaptiveROI(result, lines);
 
 #ifdef SHOW
@@ -295,7 +296,7 @@ void videoHandler(const string &file_name) {
 
 
 int main(int argc, char *argv[]) {
-    vector <string> file_list;
+    vector<string> file_list;
     glob(SRC_PREFIX + "*.avi", file_list);
 
     if (file_list.empty()) {

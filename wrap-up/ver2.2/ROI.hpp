@@ -10,7 +10,7 @@
 class ROI {
 public:
     // 좌우 하나씩
-    std::vector <cv::Point> default_ROI[2]; // roi 영역
+    cv::Mat default_mask[2];
     cv::Mat ROI_mask[2];
     LatestInfo line_info[2];
 
@@ -41,23 +41,16 @@ public:
  */
 ROI::ROI() {
     for (int i = 0; i < 2; i++) {
-        default_ROI[i].resize(4);
-        line_info[i].reset();
+        this->default_mask[i] = cv::Mat::zeros(DEFAULT_ROI_HEIGHT, DEFAULT_ROI_WIDTH, CV_8U);
     }
-    default_ROI[0] = {
-            {100, DEFAULT_ROI_UP},
-            {320, DEFAULT_ROI_UP},
-            {320, DEFAULT_ROI_DOWN},
-            {100, DEFAULT_ROI_DOWN}
-    };
-    default_ROI[1] = {
-            {320, DEFAULT_ROI_UP},
-            {540, DEFAULT_ROI_UP},
-            {540, DEFAULT_ROI_DOWN},
-            {320, DEFAULT_ROI_DOWN}
-    };
+
+    this->default_mask[0](cv::Range(0, DEFAULT_ROI_HEIGHT), cv::Range(0, DEFAULT_ROI_CENTER - DEFAULT_ROI_LEFT)).setTo(
+            255);
+    this->default_mask[1](cv::Range(0, DEFAULT_ROI_HEIGHT),
+                          cv::Range(DEFAULT_ROI_CENTER - DEFAULT_ROI_LEFT, DEFAULT_ROI_WIDTH)).setTo(255);
 
     for (int i = 0; i < 2; i++) {
+        line_info[i].reset();
         initROI(i);
     }
 
@@ -70,8 +63,7 @@ ROI::ROI() {
  * roi 초기화 (정적 roi로 설정)
  */
 void ROI::initROI(int pos) {
-    this->ROI_mask[pos] = cv::Mat::zeros(FRAME_ROWS, FRAME_COLS, CV_8U);
-    cv::fillPoly(this->ROI_mask[pos], this->default_ROI[pos], 255);
+    this->ROI_mask[pos] = this->default_mask[pos].clone();
 }
 
 /**
@@ -90,17 +82,17 @@ void ROI::applyROI(cv::InputArray frame, cv::OutputArray result) {
  */
 void ROI::updateAdaptiveMask(int pos) {
     // 동적 roi mask 갱신
-    this->ROI_mask[pos] = cv::Mat::zeros(FRAME_ROWS, FRAME_COLS, CV_8U);
+    this->ROI_mask[pos] = cv::Mat::zeros(DEFAULT_ROI_HEIGHT, DEFAULT_ROI_WIDTH, CV_8U);
     Line_info avg = line_info[pos].line;
-    std::vector <cv::Point> polygon;
+    std::vector<cv::Point> polygon;
 
     int x1 = avg.coordX; // roi 밑변과의 교차점
-    int x2 = x1 - (DEFAULT_ROI_HEIGHT) * avg.gradient; // roi 윗변과의 교차점
+    int x2 = x1 - DEFAULT_ROI_HEIGHT * avg.gradient; // roi 윗변과의 교차점
     polygon.assign({
-                           {x1 - DX, DEFAULT_ROI_DOWN},
-                           {x1 + DX, DEFAULT_ROI_DOWN},
-                           {x2 + DX, DEFAULT_ROI_UP},
-                           {x2 - DX, DEFAULT_ROI_UP}
+                           {x1 - DX, DEFAULT_ROI_HEIGHT},
+                           {x1 + DX, DEFAULT_ROI_HEIGHT},
+                           {x2 + DX, 0},
+                           {x2 - DX, 0}
                    });
     cv::fillPoly(this->ROI_mask[pos], polygon, 255);
 }
