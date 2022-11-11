@@ -123,15 +123,13 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 
             // 기존 값으로 차로 표기
             Line_info prev = roi.line_info[i].line;
-            int x1 = prev.coordX;
-            int x2 = x1 - DEFAULT_ROI_HEIGHT * prev.gradient;
-            line(frame, {x1, DEFAULT_ROI_HEIGHT}, {x2, 0}, Scalar(255, 0, 0), 1, 8);
+            line(frame, {prev.x_bottom, DEFAULT_ROI_HEIGHT}, {prev.x_top, 0}, Scalar(255, 0, 0), 1, 8);
         } else {
             // 차선 검출 성공
             Point p1(lines[lane[i].idx][0], lines[lane[i].idx][1]), p2(lines[lane[i].idx][2], lines[lane[i].idx][3]);
             // 파란색으로 표기
             line(frame, p1, p2, Scalar(255, 0, 0), 1, 8);
-            roi.line_info[i].update_lines({calculateX1(p1, p2), getCotangent(p1, p2)});
+            roi.line_info[i].update_lines(p1, p2, getCotangent(p1, p2));
         }
     }
 #ifdef DEBUG

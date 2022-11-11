@@ -5,7 +5,6 @@
 #include <opencv2/opencv.hpp> // Mat, fillPoly, bitwise_and,
 #include <vector>
 #include "./latestInfo.hpp"
-#include "./constant.hpp"
 
 class ROI {
 public:
@@ -86,13 +85,11 @@ void ROI::updateAdaptiveMask(int pos) {
     Line_info avg = line_info[pos].line;
     std::vector<cv::Point> polygon;
 
-    int x1 = avg.coordX; // roi 밑변과의 교차점
-    int x2 = x1 - DEFAULT_ROI_HEIGHT * avg.gradient; // roi 윗변과의 교차점
     polygon.assign({
-                           {x1 - DX, DEFAULT_ROI_HEIGHT},
-                           {x1 + DX, DEFAULT_ROI_HEIGHT},
-                           {x2 + DX, 0},
-                           {x2 - DX, 0}
+                           {avg.x_bottom - DX, DEFAULT_ROI_HEIGHT},
+                           {avg.x_bottom + DX, DEFAULT_ROI_HEIGHT},
+                           {avg.x_top + DX, 0},
+                           {avg.x_top - DX, 0}
                    });
     cv::fillPoly(this->ROI_mask[pos], polygon, 255);
 }
