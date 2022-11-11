@@ -17,7 +17,7 @@ void showImage(const string &label, InputArray img, int t = 0) {
 
 // 기울기 => 차선 필터링 할 때 활용
 double getInclination(Point2f p1, Point2f p2) {
-    if (p1.x == p2.x) return 1e5;
+    if (p1.x == p2.x) return 0; // x좌표가 같은 경우(직각)는 검출된 선분 무시
     return (double) (p1.y - p2.y) / (p1.x - p2.x);
 }
 
@@ -82,15 +82,6 @@ void filterLines(InputOutputArray frame, const std::vector <Vec4i> &lines) {
         drawLines(frame, {pts});
     }
     drawLines(frame, lane, Scalar(255, 0, 0));
-}
-
-void houghLineSegments(InputArray frame, InputOutputArray result) {
-    Mat edge;
-    Canny(frame, edge, 50, 150);
-//    showImage("edge", edge);
-    std::vector <Vec4i> lines;
-    HoughLinesP(edge, lines, 1, CV_PI / 180, 0, 100, 200);
-    drawLines(result, lines);
 }
 
 void test(InputArray frame) {
