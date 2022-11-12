@@ -14,11 +14,18 @@ TimeLapse tl(6); // 시간 측정
 #ifdef DETECTION_RATE
 int detected[3], frame_cnt;
 #endif //DETECTION_RATE
+#ifdef VIDEO_SAVE
+
+#include "../profile/oneVideoWriter.hpp"
+
+OneVideoWriter vw;
+#endif //VIDEO_SAVE
 using namespace std;
 using namespace cv;
 
 const string SRC_PREFIX = "../../video/";
 
+#ifdef SHOW
 // 디버깅 용 이미지 출력 함수
 void showImage(const string &label, InputArray img, int t = 0, int x = 0, int y = 0) {
     namedWindow(label, 1);
@@ -26,6 +33,7 @@ void showImage(const string &label, InputArray img, int t = 0, int x = 0, int y 
     imshow(label, img);
     waitKey(t);
 }
+#endif //SHOW
 
 /**
  * 기울기 역수 구하는 함수 (cotangent)
@@ -159,6 +167,10 @@ void test(InputArray frame) {
     showImage("gray", grayscaled, 5);
     Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
 #endif // SHOW
+#ifdef VIDEO_SAVE
+    vw.writeFrame(grayscaled, 0);
+    Mat show_roi = grayscaled.clone();
+#endif //VIDEO_SAVE
 
 #ifdef TIME_TEST
     tl.proc_record(grayscaled); // 0. to grayscale
@@ -179,7 +191,10 @@ void test(InputArray frame) {
     roi.applyROI(show_roi, show_roi); // roi 화면 출력용
     showImage("roi", show_roi, 5, FRAME_WIDTH);
 #endif // SHOW
-
+#ifdef VIDEO_SAVE
+    roi.applyROI(show_roi, show_roi);
+    vw.writeFrame(show_roi, 1);
+#endif //VIDEO_SAVE
 
 #ifdef TIME_TEST
     tl.proc_record(roi_applied); // 2. apply roi
@@ -192,6 +207,9 @@ void test(InputArray frame) {
 #ifdef SHOW
     showImage("edge", edge, 5, 0, FRAME_HEIGHT);
 #endif // SHOW
+#ifdef VIDEO_SAVE
+    vw.writeFrame(edge, 2);
+#endif //VIDEO_SAVE
 
 #ifdef TIME_TEST
     tl.proc_record(edge); // 3. canny
@@ -217,7 +235,9 @@ void test(InputArray frame) {
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
 //    waitKey(0);
 #endif // SHOW
-
+#ifdef VIDEO_SAVE
+    vw.writeFrame(result, 3);
+#endif //VIDEO_SAVE
 #ifdef TIME_TEST
     tl.proc_record(result); // 5. filter lines
     tl.total_record(frame.getMat(), result); // 6. total
@@ -273,6 +293,11 @@ int main(int argc, char *argv[]) {
         }
         frame_cnt = 0;
 #endif //DETECTION_RATE
+#ifdef VIDEO_SAVE
+        auto pos = file_name.rfind('.');
+        string save_path = "../result/video/" + file_name.substr(pos - 2, 2) + ".mp4";
+        vw = OneVideoWriter(save_path, FRAME_WIDTH, FRAME_HEIGHT, 2, 2, 4);
+#endif //VIDEO_SAVE
         videoHandler(file_name);
 
 #ifdef TIME_TEST
