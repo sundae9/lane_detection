@@ -156,7 +156,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
 }
 
 void test(InputArray frame) {
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.restart(); // 타이머 재설정
 #endif
     // 0. to grayscale

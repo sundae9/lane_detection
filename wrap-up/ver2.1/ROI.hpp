@@ -11,19 +11,8 @@ class ROI {
 public:
     // 좌우 하나씩
     std::vector <cv::Point> default_ROI[2]; // roi 영역
-    bool adaptive_flag[2]; // true: 동적 roi 적용중
     cv::Mat ROI_mask[2];
     LatestInfo line_info[2];
-
-#ifdef DEBUG
-    // ROI 관련 통계
-    struct Statistic {
-        int staticROI, adaptiveROI; // 동적, 정적 roi 적용 cnt
-        int one_detected, zero_detected; // 차로 0개, 1개 탐지
-    };
-
-    Statistic stat;
-#endif
 
     ROI();
 
@@ -44,7 +33,6 @@ ROI::ROI() {
     for (int i = 0; i < 2; i++) {
         default_ROI[i].resize(4);
         line_info[i].reset();
-        adaptive_flag[i] = false;
     }
     default_ROI[0] = {
             {275,      DEFAULT_ROI_UP},
@@ -62,10 +50,6 @@ ROI::ROI() {
     for (int i = 0; i < 2; i++) {
         initROI(i);
     }
-
-#ifdef DEBUG
-    this->stat = {0, 0, 0, 0};
-#endif
 }
 
 /**
@@ -74,7 +58,6 @@ ROI::ROI() {
 void ROI::initROI(int pos) {
     this->ROI_mask[pos] = cv::Mat::zeros(FRAME_ROWS, FRAME_COLS, CV_8U);
     cv::fillPoly(this->ROI_mask[pos], this->default_ROI[pos], 255);
-    adaptive_flag[pos] = false;
 }
 
 /**
@@ -115,12 +98,6 @@ void ROI::updateAdaptiveMask(int pos) {
  * - 동적 -> 정적: roi 초기화 및 line_info(latest_info) 초기화
  */
 void ROI::updateROI() {
-#ifdef DEBUG
-    if (this->line_info[0].adaptive_ROI_flag && this->line_info[1].adaptive_ROI_flag) this->stat.adaptiveROI++;
-    else {
-        this->stat.staticROI++;
-    }
-#endif
     for (int i = 0; i < 2; i++) {
         // 1. 정적 roi 리셋이 필요한 경우
         if (this->line_info[i].undetected_cnt == UNDETECTED_STD) {
