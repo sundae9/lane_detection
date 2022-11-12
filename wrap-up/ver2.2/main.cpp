@@ -1,6 +1,7 @@
 #include <iostream>
-#include "opencv2/opencv.hpp"
+
 #include "./ROI.hpp"
+#include "opencv2/opencv.hpp"
 
 ROI roi;
 
@@ -8,18 +9,18 @@ ROI roi;
 
 #include "../profile/timeLapse.hpp"
 
-TimeLapse tl(6); // 시간 측정
+TimeLapse tl(6);  // 시간 측정
 
-#endif //TIME_TEST
+#endif  // TIME_TEST
 #ifdef DETECTION_RATE
 int detected[3], frame_cnt;
-#endif //DETECTION_RATE
+#endif  // DETECTION_RATE
 #ifdef VIDEO_SAVE
 
 #include "../profile/oneVideoWriter.hpp"
 
 OneVideoWriter vw;
-#endif //VIDEO_SAVE
+#endif  // VIDEO_SAVE
 using namespace std;
 using namespace cv;
 
@@ -35,7 +36,7 @@ void showImage(const string &label, InputArray img, int t = 0, int x = 0, int y 
     waitKey(t);
 }
 
-#endif //SHOW
+#endif  // SHOW
 
 /**
  * 기울기 역수 구하는 함수 (cotangent)
@@ -53,7 +54,7 @@ double getCotangent(Point p1, Point p2) {
  * @param lines 그릴 선분들
  * @param color 색
  */
-void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
+void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         line(frame, p1, p2, color, 1, 8);
@@ -61,17 +62,97 @@ void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar 
 }
 
 /**
+ * 동적 ROI 영역 네 점 반환
+ * @return
+ */
+vector<Point> MaskArea() {
+    Line_info avg = roi.line_info[0].line;
+    int x1 = avg.x_bottom; // roi 밑변과의 교차점
+    int x2 = avg.x_top; // roi 윗변과의 교차점
+
+
+    avg = roi.line_info[1].line;
+    int x3 = avg.x_bottom; // roi 밑변과의 교차점
+    int x4 = avg.x_top; // roi 윗변과의 교차점
+
+    if (!roi.line_info[0].adaptive_ROI_flag && !roi.line_info[1].adaptive_ROI_flag) {
+        return {}; // ROI 가 생성되지 않았다면 빈 벡터 반환하여 시각화하지 않음.
+    } else if (!roi.line_info[0].adaptive_ROI_flag) {
+        x1 = DEFAULT_ROI_WIDTH / 2;
+        x2 = DEFAULT_ROI_WIDTH / 2;
+    } else if (!roi.line_info[1].adaptive_ROI_flag) {
+        x3 = DEFAULT_ROI_WIDTH / 2;
+        x4 = DEFAULT_ROI_WIDTH / 2;
+    }
+
+    vector<Point> polygon;
+
+    polygon.assign({
+                           {x1, DEFAULT_ROI_HEIGHT},
+                           {x2, 0},
+                           {x4, 0},
+                           {x3, DEFAULT_ROI_HEIGHT}
+                   });
+
+    return polygon;
+}
+
+/**
+ * 동적 ROI 영역의 중앙 지점 반환
+ * @return
+ */
+vector<Point> MidLine() {
+    Line_info avg = roi.line_info[0].line;
+    int x1 = (avg.x_bottom + avg.x_top) / 2; // roi 밑변과의 교차점
+
+    avg = roi.line_info[1].line;
+    int x2 = (avg.x_bottom + avg.x_top) / 2; // roi 밑변과의 교차점
+
+    vector<Point> polygon;
+
+    int mid = (x1 + x2) / 2;
+
+    if (x1 == 0 && x2 == 0) {
+        mid = -1; // 검출되지 않았다면 화면 밖에 표시
+    } else if (x1 == 0 || x2 == 0) {
+        mid = DEFAULT_ROI_WIDTH / 2; // 한 쪽만 검출되었다면 중앙에 표시
+    }
+
+    polygon.assign({
+                           {mid, DEFAULT_ROI_HEIGHT},
+                           {mid, 0}
+                   });
+
+    return polygon;
+}
+
+/**
+ * 현재 생성된 ROI가 이루는 진행 차선 영역, 차선의 중앙부 시각화
+ * @param frame
+ */
+void display_graphic(InputOutputArray frame) {
+    vector<Point> pts;
+    pts = MaskArea();
+
+    polylines(frame, pts, true, Scalar(255, 0, 0), 5);  // draw roi
+
+    pts = MidLine();
+
+    line(frame, pts[0], pts[1], Scalar(0, 255, 255), 1, 8);  // draw mid line
+}
+
+/**
  * 허프 변환으로 검출한 차선 필터링
  * @param frame
  * @param lines
  */
-void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i> &lines) {
+void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i> &lines) {
     struct Data {
         double grad, diff;
         int idx;
     };
 
-    Data lane[2]; // 왼쪽[0], 오른쪽[1] 차선
+    Data lane[2];  // 왼쪽[0], 오른쪽[1] 차선
 
     // 초기화
     for (int i = 0; i < 2; i++) {
@@ -80,7 +161,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
         lane[i].idx = -1;
     }
 
-    int idx = -1, pos; // 선분 index, pos: 왼쪽 or 오른쪽
+    int idx = -1, pos;  // 선분 index, pos: 왼쪽 or 오른쪽
     double m;
 
     for (Vec4i pts: lines) {
@@ -90,14 +171,14 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
 
         m = getCotangent(p1, p2);
 
-        if (abs(m) > GRADIENT_STD) { // 기준 기울기보다 작은 경우 (역수로 계산하므로 부등호 반대)
+        if (abs(m) > GRADIENT_STD) {  // 기준 기울기보다 작은 경우 (역수로 계산하므로 부등호 반대)
 #ifdef GRAPHIC
             line(frame, p1, p2, Scalar(0, 0, 255), 1, 8);
-#endif //GRAPHIC
+#endif  // GRAPHIC
             continue;
         }
 
-        pos = m < 0 ? 0 : 1; // 왼쪽, 오른쪽 결정
+        pos = m < 0 ? 0 : 1;  // 왼쪽, 오른쪽 결정
 
         // 기존 값과 차이가 최소인 선분 필터링
         if (abs(lane[pos].grad - m) < lane[pos].diff) {
@@ -130,25 +211,33 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
             roi.line_info[i].update_lines(p1, p2, getCotangent(p1, p2));
         }
     }
+
+#ifdef GRAPHIC
+    display_graphic(frame);
+#endif
+
 #ifdef DETECTION_RATE
     // 검출 -> 동적 roi가 작동 중이거나 혹은 idx =! -1 인 경우
     // 미검출 -> 동적 roi가 미작동이면서 idx==-1 인 경우
     bool left = roi.line_info[0].adaptive_ROI_flag || (lane[0].idx != -1);
     bool right = roi.line_info[1].adaptive_ROI_flag || (lane[1].idx != -1);
 
-    if (left && right) detected[2]++;
-    else if (left || right) detected[1]++;
-    else detected[0]++;
+    if (left && right)
+        detected[2]++;
+    else if (left || right)
+        detected[1]++;
+    else
+        detected[0]++;
 
     frame_cnt++;
-#endif //DETECTION_RATE
+#endif  // DETECTION_RATE
     roi.updateROI();
 }
 
 void test(InputArray frame) {
 #ifdef TIME_TEST
-    tl.restart(); // 타이머 재설정
-#endif //TIME_TEST
+    tl.restart();  // 타이머 재설정
+#endif             // TIME_TEST
     Mat road_area = frame.getMat()(Range(DEFAULT_ROI_UP, DEFAULT_ROI_DOWN), Range(DEFAULT_ROI_LEFT, DEFAULT_ROI_RIGHT));
     // 0. to grayscale
     Mat grayscaled;
@@ -156,40 +245,40 @@ void test(InputArray frame) {
 
 #ifdef SHOW
     showImage("gray", grayscaled, 5);
-    Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
-#endif // SHOW
+    Mat show_roi = grayscaled.clone();  // roi 마스킹 화면 출력용
+#endif                                  // SHOW
 #ifdef VIDEO_SAVE
     vw.writeFrame(grayscaled, 0);
-    Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
-#endif //VIDEO_SAVE
+    Mat show_roi = grayscaled.clone();  // roi 마스킹 화면 출력용
+#endif                                  // VIDEO_SAVE
 
 #ifdef TIME_TEST
-    tl.proc_record(grayscaled); // 0. to grayscale
-#endif // TIME_TEST
+    tl.proc_record(grayscaled);  // 0. to grayscale
+#endif                           // TIME_TEST
 
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 150, 145, THRESH_BINARY);
 
 #ifdef TIME_TEST
-    tl.proc_record(grayscaled); // 1. 주어진 임계값(default:130)으로 이진화
-#endif //TIME_TEST
+    tl.proc_record(grayscaled);  // 1. 주어진 임계값(default:130)으로 이진화
+#endif                           // TIME_TEST
 
     // 2. apply roi
     Mat roi_applied;
     roi.applyROI(grayscaled, roi_applied);
 
 #ifdef SHOW
-    roi.applyROI(show_roi, show_roi); // roi 화면 출력용
+    roi.applyROI(show_roi, show_roi);  // roi 화면 출력용
     showImage("roi", show_roi, 5, FRAME_WIDTH);
-#endif // SHOW
+#endif  // SHOW
 #ifdef VIDEO_SAVE
     roi.applyROI(show_roi, show_roi);
     vw.writeFrame(show_roi, 1);
-#endif //VIDEO_SAVE
+#endif  // VIDEO_SAVE
 
 #ifdef TIME_TEST
-    tl.proc_record(roi_applied); // 2. apply roi
-#endif // TIME_TEST
+    tl.proc_record(roi_applied);  // 2. apply roi
+#endif                            // TIME_TEST
 
     // 3. canny
     Mat edge;
@@ -197,25 +286,25 @@ void test(InputArray frame) {
 
 #ifdef SHOW
     showImage("edge", edge, 5, 0, FRAME_HEIGHT);
-#endif // SHOW
+#endif  // SHOW
 #ifdef VIDEO_SAVE
     vw.writeFrame(edge, 2);
-#endif //VIDEO_SAVE
+#endif  // VIDEO_SAVE
 #ifdef TIME_TEST
-    tl.proc_record(edge); // 3. canny
-#endif // TIME_TEST
+    tl.proc_record(edge);  // 3. canny
+#endif                     // TIME_TEST
 
     // 4. hough line
-    std::vector <Vec4i> lines;
+    std::vector<Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 40, 40);
 
 #ifdef TIME_TEST
     tl.stop_both_timer();
-    Mat preview_lines = frame.getMat().clone(); // 필터링 전 검출한 선분 그리기
+    Mat preview_lines = frame.getMat().clone();  // 필터링 전 검출한 선분 그리기
     drawLines(preview_lines, lines);
 
-    tl.proc_record(preview_lines); // 4. hough line
-#endif //TIME_TEST
+    tl.proc_record(preview_lines);  // 4. hough line
+#endif                              // TIME_TEST
 
     // 5. filter lines
     Mat result = road_area.clone();
@@ -224,15 +313,15 @@ void test(InputArray frame) {
 #ifdef SHOW
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
 //    waitKey(0);
-#endif // SHOW
+#endif  // SHOW
 
 #ifdef TIME_TEST
-    tl.proc_record(result); // 5. filter lines
-    tl.total_record(frame.getMat(), result); // 6. total
-#endif // TIME_TEST
+    tl.proc_record(result);                   // 5. filter lines
+    tl.total_record(frame.getMat(), result);  // 6. total
+#endif                                        // TIME_TEST
 #ifdef VIDEO_SAVE
     vw.writeFrame(result, 3);
-#endif //VIDEO_SAVE
+#endif  // VIDEO_SAVE
 }
 
 void videoHandler(const string &file_name) {
@@ -254,17 +343,16 @@ void videoHandler(const string &file_name) {
             break;
         }
 #ifdef TIME_TEST
-        tl.prev_img = frame.clone(); // 처리 전 원본 사진 저장
-#endif //TIME_TEST
+        tl.prev_img = frame.clone();  // 처리 전 원본 사진 저장
+#endif                                // TIME_TEST
         test(frame);
     }
 
     video.release();
 }
 
-
 int main(int argc, char *argv[]) {
-    vector <string> file_list;
+    vector<string> file_list;
     glob(SRC_PREFIX + "*.avi", file_list);
 
     if (file_list.empty()) {
@@ -277,32 +365,32 @@ int main(int argc, char *argv[]) {
         tl = TimeLapse(6);
         tl.set_tc(1);
 //        tl.set_tc(stoi(argv[1]));
-#endif // TIME_TEST
+#endif  // TIME_TEST
 #ifdef VIDEO_SAVE
         auto pos = file_name.rfind('.');
         string save_path = "../result/video/" + file_name.substr(pos - 2, 2) + ".mp4";
         vw = OneVideoWriter(save_path, DEFAULT_ROI_WIDTH, DEFAULT_ROI_HEIGHT, 2, 2, 4);
-#endif //VIDEO_SAVE
+#endif  // VIDEO_SAVE
 #ifdef DETECTION_RATE
         for (int i = 0; i < 3; i++) {
             detected[i] = 0;
         }
         frame_cnt = 0;
-#endif //DETECTION_RATE
+#endif  // DETECTION_RATE
 #ifdef SHOW
         if (file_name == SRC_PREFIX + "2.avi") continue;
-#endif //SHOW
+#endif  // SHOW
         videoHandler(file_name);
 
 #ifdef TIME_TEST
         tl.print_info_all();
-#endif //TIME_TEST
+#endif  // TIME_TEST
 #ifdef DETECTION_RATE
         for (int i = 0; i < 3; i++) {
             cout << detected[i] << ',';
         }
         cout << frame_cnt << '\n';
-#endif //DETECTION_RATE
+#endif  // DETECTION_RATE
     }
     return 0;
 }

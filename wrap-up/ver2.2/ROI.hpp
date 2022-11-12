@@ -22,7 +22,6 @@ public:
     void applyROI(cv::InputArray frame, cv::OutputArray result);
 
     void updateROI();
-
 };
 
 /**
@@ -69,7 +68,7 @@ void ROI::updateAdaptiveMask(int pos) {
     // 동적 roi mask 갱신
     this->ROI_mask[pos] = cv::Mat::zeros(DEFAULT_ROI_HEIGHT, DEFAULT_ROI_WIDTH, CV_8U);
     Line_info avg = line_info[pos].line;
-    std::vector <cv::Point> polygon;
+    std::vector<cv::Point> polygon;
 
     polygon.assign({
                            {avg.x_bottom - DX, DEFAULT_ROI_HEIGHT},
@@ -79,6 +78,7 @@ void ROI::updateAdaptiveMask(int pos) {
                    });
     cv::fillPoly(this->ROI_mask[pos], polygon, 255);
 }
+
 
 /**
  * roi 갱신
