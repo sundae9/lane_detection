@@ -4,13 +4,13 @@
 
 ROI roi;
 
-#ifdef DEBUG
+#ifdef TIME_TEST
 
 #include "../profile/timeLapse.hpp"
 
 TimeLapse tl(6); // 시간 측정
 
-#endif
+#endif //TIME_TEST
 
 using namespace std;
 using namespace cv;
@@ -130,17 +130,17 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
             roi.line_info[i].update_lines({calculateX1(p1, p2), getCotangent(p1, p2)});
         }
     }
-#ifdef DEBUG
-    if (!roi.line_info[0].adaptive_ROI_flag && !roi.line_info[1].adaptive_ROI_flag && lane[0].idx != -1 &&
-        lane[1].idx != -1) { // 둘 다 못 찾았을 경우
-        roi.stat.zero_detected++;
-    } else if ((!roi.line_info[0].adaptive_ROI_flag && lane[0].idx != -1) ||
-               (!roi.line_info[1].adaptive_ROI_flag && lane[1].idx != -1)) { // 둘 중 하나라도 못 찾았을 경우
-        roi.stat.one_detected++;
-    }
-//    roi.line_info[0].print_all();
-//    roi.line_info[1].print_all();
-#endif
+//#ifdef TIME_TEST
+//    if (!roi.line_info[0].adaptive_ROI_flag && !roi.line_info[1].adaptive_ROI_flag && lane[0].idx != -1 &&
+//        lane[1].idx != -1) { // 둘 다 못 찾았을 경우
+//        roi.stat.zero_detected++;
+//    } else if ((!roi.line_info[0].adaptive_ROI_flag && lane[0].idx != -1) ||
+//               (!roi.line_info[1].adaptive_ROI_flag && lane[1].idx != -1)) { // 둘 중 하나라도 못 찾았을 경우
+//        roi.stat.one_detected++;
+//    }
+////    roi.line_info[0].print_all();
+////    roi.line_info[1].print_all();
+//#endif //TIME_TEST
 
     roi.updateROI();
 }
@@ -154,92 +154,72 @@ void test(InputArray frame) {
     cvtColor(frame, grayscaled, COLOR_BGR2GRAY);
 
 #ifdef SHOW
-
-#ifdef DEBUG
-    tl.stop_both_timer();
-#endif // DEBUG
-
     showImage("gray", grayscaled, 5);
     Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
 #endif // SHOW
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.proc_record(grayscaled); // 0. to grayscale
-#endif // DEBUG
+#endif // TIME_TEST
 
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.proc_record(grayscaled); // 1. 주어진 임계값(default:130)으로 이진화
-#endif
+#endif //TIME_TEST
 
     // 2. apply roi
     Mat roi_applied;
     roi.applyROI(grayscaled, roi_applied);
 
 #ifdef SHOW
-
-#ifdef DEBUG
-    tl.stop_both_timer();
-#endif // DEBUG
-
     roi.applyROI(show_roi, show_roi); // roi 화면 출력용
     showImage("roi", show_roi, 5, FRAME_WIDTH);
 #endif // SHOW
 
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.proc_record(roi_applied); // 2. apply roi
-#endif // DEBUG
+#endif // TIME_TEST
 
     // 3. canny
     Mat edge;
     Canny(roi_applied, edge, 50, 150);
 
 #ifdef SHOW
-
-#ifdef DEBUG
-    tl.stop_both_timer();
-#endif
-
     showImage("edge", edge, 5, 0, FRAME_HEIGHT);
 #endif // SHOW
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.proc_record(edge); // 3. canny
-#endif // DEBUG
+#endif // TIME_TEST
 
     // 4. hough line
     std::vector <Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.stop_both_timer();
     Mat preview_lines = frame.getMat().clone(); // 필터링 전 검출한 선분 그리기
     drawLines(preview_lines, lines);
 
     tl.proc_record(preview_lines); // 4. hough line
-#endif
+#endif //TIME_TEST
 
     // 5. filter lines
     Mat result = frame.getMat().clone();
     filterLinesWithAdaptiveROI(result, lines);
 
 #ifdef SHOW
-
-#ifdef DEBUG
-    tl.stop_both_timer();
-#endif // DEBUG
-
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
 //    waitKey(0);
 #endif // SHOW
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.proc_record(result); // 5. filter lines
     tl.total_record(frame.getMat(), result); // 6. total
-#endif // DEBUG
+#endif // TIME_TEST
 }
 
 void videoHandler(const string &file_name) {
@@ -260,9 +240,9 @@ void videoHandler(const string &file_name) {
         if (frame.empty()) {
             break;
         }
-#ifdef DEBUG
+#ifdef TIME_TEST
         tl.prev_img = frame.clone(); // 처리 전 원본 사진 저장
-#endif //DEBUG
+#endif //TIME_TEST
         test(frame);
     }
 
@@ -280,17 +260,17 @@ int main(int argc, char *argv[]) {
     }
 
     for (string &file_name: file_list) {
-#ifdef DEBUG
+#ifdef TIME_TEST
         tl = TimeLapse(6);
         tl.set_tc(1);
 //        tl.set_tc(stoi(argv[1]));
-#endif // DEBUG
+#endif // TIME_TEST
 
         videoHandler(file_name);
 
-#ifdef DEBUG
+#ifdef TIME_TEST
         tl.print_info_all();
-#endif
+#endif //TIME_TEST
     }
     return 0;
 }
