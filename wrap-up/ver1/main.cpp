@@ -1,8 +1,27 @@
 #include <iostream>
 #include "opencv2/opencv.hpp"
+#include "./constant.hpp"
 
 using namespace std;
 using namespace cv;
+
+#ifdef TIMETEST
+
+#include "../profile/timeLapse.hpp"
+
+TimeLapse tl(6);
+#endif //TIMETEST
+
+#ifdef DETECTION_RATE
+int detected[3], total;
+#endif //DETECTION_RATE
+
+#ifdef VIDEO_SAVE
+
+#include "../profile/oneVideoWriter.hpp"
+
+OneVideoWriter vw;
+#endif //VIDEO_SAVE
 
 const string SRC_PREFIX = "../../video/";
 
@@ -55,8 +74,10 @@ void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar 
  */
 void filterLines(InputOutputArray frame, const std::vector <Vec4i> &lines) {
     double left_max = 0, right_max = 0;
-    bool left = false, right = false;
     std::vector <Vec4i> lane(2);
+#ifdef DETECTION_RATE
+    bool left = false, right = false;
+#endif //DETECTION_RATE
 
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
@@ -70,54 +91,98 @@ void filterLines(InputOutputArray frame, const std::vector <Vec4i> &lines) {
             if (m > left_max) {
                 left_max = m;
                 lane[0] = pts;
+#ifdef DETECTION_RATE
                 left = true;
+#endif //DETECTION_RATE
             }
         } else {
             if (m < right_max) {
                 right_max = m;
                 lane[1] = pts;
+#ifdef DETECTION_RATE
                 right = true;
+#endif //DETECTION_RATE
             }
         }
         drawLines(frame, {pts});
     }
     drawLines(frame, lane, Scalar(255, 0, 0));
+#ifdef DETECTION_RATE
+    if (left && right) detected[2]++;
+    else if (left || right) detected[1]++;
+    else detected[0]++;
+#endif //DETECTION_RATE
 }
 
 void test(InputArray frame) {
+#ifdef TIMETEST
+    tl.restart(); // 타이머 재시작
+#endif //TIMETEST
+
     // 0. to grayscale
     Mat grayscaled;
     cvtColor(frame, grayscaled, COLOR_BGR2GRAY);
+#ifdef TIMETEST
+    tl.proc_record(grayscaled); // 0. grayscale
+#endif //TIMETEST
+#ifdef VIDEO_SAVE
+    vw.writeFrame(grayscaled, 0);
+#endif //VIDEO_SAVE
 
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
 
 //    showImage("grayscaled", grayscaled);
+#ifdef TIMETEST
+    tl.proc_record(grayscaled); // 1. threshold
+#endif //TIMETEST
 
     // 2. apply roi
     Mat roi;
     applyStaticROI(grayscaled, roi);
 //    showImage("roi", roi);
+#ifdef TIMETEST
+    tl.proc_record(roi); // 2. apply roi
+#endif //TIMETEST
+#ifdef VIDEO_SAVE
+    vw.writeFrame(roi, 1);
+#endif //VIDEO_SAVE
 
     // 3. canny
     Mat edge;
     Canny(roi, edge, 50, 150);
-
 //    showImage("edge", edge);
+#ifdef TIMETEST
+    tl.proc_record(edge); // 3. canny edge
+#endif //TIMETEST
+#ifdef VIDEO_SAVE
+    vw.writeFrame(edge, 2);
+#endif //VIDEO_SAVE
 
     // 4. hough line
     std::vector <Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
+#ifdef TIMETEST
+    tl.stop_both_timer();
+    Mat preview_lines = frame.getMat().clone();
+    drawLines(preview_lines, lines);
+    tl.proc_record(preview_lines); // 4. hough transformation
+#endif //TIMETEST
 
     //5. filter lines
     Mat result = frame.getMat().clone();
     filterLines(result, lines);
 
-    showImage("result", result, 10);
-//    destroyAllWindows();
+#ifdef TIMETEST
+    tl.proc_record(result); // 5. filter line
+    tl.total_record(frame.getMat(), result); // 6. total
+#endif //TIMETEST
+#ifdef VIDEO_SAVE
+    vw.writeFrame(result, 3);
+#endif //VIDEO_SAVE
 }
 
-void videoHandler(const string &file_name, int tc) {
+void videoHandler(const string &file_name) {
     VideoCapture video(file_name);
 
     if (!video.isOpened()) {
@@ -125,6 +190,22 @@ void videoHandler(const string &file_name, int tc) {
         return;
     }
 
+#ifdef TIMETEST
+    tl = TimeLapse(6);
+    tl.set_tc(1);
+#endif //TIMETEST
+
+#ifdef DETECTION_RATE
+    for (int i = 0; i < 3; i++) {
+        detected[i] = 0;
+    }
+    total = 0;
+#endif //DETECTION_RATE
+#ifdef VIDEO_SAVE
+    auto pos = file_name.rfind('.');
+    string save_path = "../result/video/" + file_name.substr(pos - 2, 2) + ".mp4";
+    vw = OneVideoWriter(save_path, FRAME_WIDTH, FRAME_HEIGHT, 2, 2, 4);
+#endif // VIDEO_SAVE
     Mat frame;
 
     while (true) {
@@ -133,10 +214,26 @@ void videoHandler(const string &file_name, int tc) {
         if (frame.empty()) {
             break;
         }
+#ifdef TIMETEST
+        tl.prev_img = frame.clone();
+#endif // TIMETEST
+#ifdef DETECTION_RATE
+        total++;
+#endif //DETECTION_RATE
+
         test(frame);
     }
-
     video.release();
+
+#ifdef TIMETEST
+    tl.print_info_all();
+#endif //TIMETEST
+#ifdef DETECTION_RATE
+    for (int i = 0; i < 3; i++) {
+        cout << detected[i] << ',';
+    }
+    cout << total << '\n';
+#endif //DETECTION_RATE
 }
 
 int main(int argc, char *argv[]) {
@@ -154,7 +251,7 @@ int main(int argc, char *argv[]) {
                    {342, 195}};
 
     for (string &file_name: file_list) {
-        videoHandler(file_name, 1);
+        videoHandler(file_name);
     }
 
     return 0;
