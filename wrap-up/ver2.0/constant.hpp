@@ -17,8 +17,7 @@
 #define GRADIENT_STD 1.73 // cotanent(30 deg) = 1.73
 
 // MODE
-#define SHOW //imshow 활성화
-#define DEBUG // 출력 문구
-#define GRAPHIC
+//#define SHOW //imshow 활성화
+#define TIME_TEST // 출력 문구
 
 #endif //VER2_0_CONSTANT_HPP
