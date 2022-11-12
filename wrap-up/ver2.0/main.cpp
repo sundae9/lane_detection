@@ -11,7 +11,15 @@ ROI roi;
 TimeLapse tl(6); // 시간 측정
 
 #endif //TIME_TEST
+#ifdef DETECTION_RATE
+int detected[3], frame_cnt;
+#endif //DETECTION_RATE
+#ifdef VIDEO_SAVE
 
+#include "../profile/oneVideoWriter.hpp"
+
+OneVideoWriter vw;
+#endif //VIDEO_SAVE
 using namespace std;
 using namespace cv;
 
@@ -138,16 +146,17 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
     }
     roi.updateROI();
 
-//#ifdef TIME_TEST
-//    if (roi.adaptive_flag) { // 동적 roi - 어쨌든 차선 결정됨
-//        return;
-//    }
-//    if (lane[0].idx != -1 && lane[1].idx != -1) { // 둘 다 못 찾았을 경우
-//        roi.stat.zero_detected++;
-//    } else if (lane[0].idx != -1 || lane[1].idx != -1) { // 둘 중 하나라도 못 찾았을 경우
-//        roi.stat.one_detected++;
-//    }
-//#endif
+#ifdef DETECTION_RATE
+    if (roi.adaptive_flag) { // 동적 roi - 어쨌든 차선 결정됨
+        detected[2]++;
+    } else if (lane[0].idx == -1 && lane[1].idx == -1) { // 0개 검출
+        detected[0]++;
+    } else if (lane[0].idx == -1 || lane[1].idx == -1) { // 1개 검출
+        detected[1]++;
+    } else {
+        detected[2]++;
+    }
+#endif
 }
 
 void test(InputArray frame) {
@@ -162,6 +171,10 @@ void test(InputArray frame) {
     showImage("gray", grayscaled, 5);
     Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
 #endif // SHOW
+#ifdef VIDEO_SAVE
+    vw.writeFrame(grayscaled, 0);
+    Mat show_roi = grayscaled.clone();
+#endif //VIDEO_SAVE
 
 #ifdef TIME_TEST
     tl.proc_record(grayscaled); // 0. to grayscale
@@ -182,7 +195,10 @@ void test(InputArray frame) {
     roi.applyROI(show_roi, show_roi); // roi 화면 출력용
     showImage("roi", show_roi, 5, FRAME_WIDTH);
 #endif // SHOW
-
+#ifdef VIDEO_SAVE
+    roi.applyROI(show_roi, show_roi); // roi 화면 출력용
+    vw.writeFrame(show_roi, 1);
+#endif //VIDEO_SAVE
 
 #ifdef TIME_TEST
     tl.proc_record(roi_applied); // 2. apply roi
@@ -195,6 +211,9 @@ void test(InputArray frame) {
 #ifdef SHOW
     showImage("edge", edge, 5, 0, FRAME_HEIGHT);
 #endif // SHOW
+#ifdef VIDEO_SAVE
+    vw.writeFrame(edge, 2);
+#endif //VIDEO_SAVE
 
 #ifdef TIME_TEST
     tl.proc_record(edge); // 3. canny
@@ -219,7 +238,9 @@ void test(InputArray frame) {
 #ifdef SHOW
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
 #endif // SHOW
-
+#ifdef VIDEO_SAVE
+    vw.writeFrame(result, 3);
+#endif //VIDEO_SAVE
 #ifdef TIME_TEST
     tl.proc_record(result); // 5. filter lines
     tl.total_record(frame.getMat(), result); // 6. total
@@ -248,6 +269,9 @@ void videoHandler(const string &file_name) {
 #ifdef TIME_TEST
         tl.prev_img = frame.clone(); // 처리 전 원본 사진 저장
 #endif //TIME_TEST
+#ifdef DETECTION_RATE
+        frame_cnt++;
+#endif //DETECTION_RATE
         test(frame);
     }
 
@@ -270,12 +294,29 @@ int main(int argc, char *argv[]) {
         tl.set_tc(1);
 //        tl.set_tc(stoi(argv[1]));
 #endif // TIME_TEST
+#ifdef DETECTION_RATE
+        for (int i = 0; i < 3; i++) {
+            detected[i] = 0;
+        }
+        frame_cnt = 0;
+#endif //DETECTION_RATE
+#ifdef VIDEO_SAVE
+        auto pos = file_name.rfind('.');
+        string save_path = "../result/video/" + file_name.substr(pos - 2, 2) + ".mp4";
+        vw = OneVideoWriter(save_path, FRAME_WIDTH, FRAME_HEIGHT, 2, 2, 4);
+#endif //VIDEO_SAVE
 
         videoHandler(file_name);
 
 #ifdef TIME_TEST
         tl.print_info_all();
 #endif //TIME_TEST
+#ifdef DETECTION_RATE
+        for (int i = 0; i < 3; i++) {
+            cout << detected[i] << ',';
+        }
+        cout << frame_cnt << '\n';
+#endif //DETECTION_RATE
     }
     return 0;
 }

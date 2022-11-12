@@ -19,5 +19,6 @@
 // MODE
 //#define SHOW //imshow 활성화
 #define TIME_TEST // 출력 문구
-
+//#define DETECTION_RATE
+//#define VIDEO_SAVE
 #endif //VER2_0_CONSTANT_HPP
