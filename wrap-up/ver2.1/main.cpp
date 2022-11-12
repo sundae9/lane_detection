@@ -11,7 +11,9 @@ ROI roi;
 TimeLapse tl(6); // 시간 측정
 
 #endif //TIME_TEST
-
+#ifdef DETECTION_RATE
+int detected[3], frame_cnt;
+#endif //DETECTION_RATE
 using namespace std;
 using namespace cv;
 
@@ -130,18 +132,18 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
             roi.line_info[i].update_lines({calculateX1(p1, p2), getCotangent(p1, p2)});
         }
     }
-//#ifdef TIME_TEST
-//    if (!roi.line_info[0].adaptive_ROI_flag && !roi.line_info[1].adaptive_ROI_flag && lane[0].idx != -1 &&
-//        lane[1].idx != -1) { // 둘 다 못 찾았을 경우
-//        roi.stat.zero_detected++;
-//    } else if ((!roi.line_info[0].adaptive_ROI_flag && lane[0].idx != -1) ||
-//               (!roi.line_info[1].adaptive_ROI_flag && lane[1].idx != -1)) { // 둘 중 하나라도 못 찾았을 경우
-//        roi.stat.one_detected++;
-//    }
-////    roi.line_info[0].print_all();
-////    roi.line_info[1].print_all();
-//#endif //TIME_TEST
+#ifdef DETECTION_RATE
+    // 검출 -> 동적 roi가 작동 중이거나 혹은 idx =! -1 인 경우
+    // 미검출 -> 동적 roi가 미작동이면서 idx==-1 인 경우
+    bool left = roi.line_info[0].adaptive_ROI_flag || (lane[0].idx != -1);
+    bool right = roi.line_info[1].adaptive_ROI_flag || (lane[1].idx != -1);
 
+    if (left && right) detected[2]++;
+    else if (left || right) detected[1]++;
+    else detected[0]++;
+
+    frame_cnt++;
+#endif //DETECTION_RATE
     roi.updateROI();
 }
 
@@ -265,12 +267,23 @@ int main(int argc, char *argv[]) {
         tl.set_tc(1);
 //        tl.set_tc(stoi(argv[1]));
 #endif // TIME_TEST
-
+#ifdef DETECTION_RATE
+        for (int i = 0; i < 3; i++) {
+            detected[i] = 0;
+        }
+        frame_cnt = 0;
+#endif //DETECTION_RATE
         videoHandler(file_name);
 
 #ifdef TIME_TEST
         tl.print_info_all();
 #endif //TIME_TEST
+#ifdef DETECTION_RATE
+        for (int i = 0; i < 3; i++) {
+            cout << detected[i] << ',';
+        }
+        cout << frame_cnt << '\n';
+#endif //DETECTION_RATE
     }
     return 0;
 }
