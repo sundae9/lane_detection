@@ -13,16 +13,6 @@ public:
     cv::Mat ROI_mask[2];
     LatestInfo line_info[2];
 
-#ifdef DEBUG
-    // ROI 관련 통계
-    struct Statistic {
-        int staticROI, adaptiveROI; // 동적, 정적 roi 적용 cnt
-        int one_detected, zero_detected; // 차로 0개, 1개 탐지
-    };
-
-    Statistic stat;
-#endif
-
     ROI();
 
     void initROI(int pos);
@@ -52,10 +42,6 @@ ROI::ROI() {
         line_info[i].reset();
         initROI(i);
     }
-
-#ifdef DEBUG
-    this->stat = {0, 0, 0, 0};
-#endif
 }
 
 /**
@@ -83,7 +69,7 @@ void ROI::updateAdaptiveMask(int pos) {
     // 동적 roi mask 갱신
     this->ROI_mask[pos] = cv::Mat::zeros(DEFAULT_ROI_HEIGHT, DEFAULT_ROI_WIDTH, CV_8U);
     Line_info avg = line_info[pos].line;
-    std::vector<cv::Point> polygon;
+    std::vector <cv::Point> polygon;
 
     polygon.assign({
                            {avg.x_bottom - DX, DEFAULT_ROI_HEIGHT},
@@ -101,12 +87,6 @@ void ROI::updateAdaptiveMask(int pos) {
  * - 동적 -> 정적: roi 초기화 및 line_info(latest_info) 초기화
  */
 void ROI::updateROI() {
-#ifdef DEBUG
-    if (this->line_info[0].adaptive_ROI_flag && this->line_info[1].adaptive_ROI_flag) this->stat.adaptiveROI++;
-    else {
-        this->stat.staticROI++;
-    }
-#endif
     for (int i = 0; i < 2; i++) {
         // 1. 정적 roi 리셋이 필요한 경우
         if (this->line_info[i].undetected_cnt == UNDETECTED_STD) {

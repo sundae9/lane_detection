@@ -4,22 +4,28 @@
 
 ROI roi;
 
-#ifdef DEBUG
+#ifdef TIME_TEST
 
 #include "../profile/timeLapse.hpp"
 
 TimeLapse tl(6); // 시간 측정
 
-#endif
+#endif //TIME_TEST
+#ifdef DETECTION_RATE
+int detected[3], frame_cnt;
+#endif //DETECTION_RATE
+#ifdef VIDEO_SAVE
 
-#ifdef SAVE
-cv::VideoWriter video_writer;
-#endif //SAVE
+#include "../profile/oneVideoWriter.hpp"
 
+OneVideoWriter vw;
+#endif //VIDEO_SAVE
 using namespace std;
 using namespace cv;
 
 const string SRC_PREFIX = "../../video/";
+
+#ifdef SHOW
 
 // 디버깅 용 이미지 출력 함수
 void showImage(const string &label, InputArray img, int t = 0, int x = 0, int y = 0) {
@@ -28,6 +34,8 @@ void showImage(const string &label, InputArray img, int t = 0, int x = 0, int y 
     imshow(label, img);
     waitKey(t);
 }
+
+#endif //SHOW
 
 /**
  * 기울기 역수 구하는 함수 (cotangent)
@@ -45,7 +53,7 @@ double getCotangent(Point p1, Point p2) {
  * @param lines 그릴 선분들
  * @param color 색
  */
-void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
+void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         line(frame, p1, p2, color, 1, 8);
@@ -57,7 +65,7 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar c
  * @param frame
  * @param lines
  */
-void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i> &lines) {
+void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i> &lines) {
     struct Data {
         double grad, diff;
         int idx;
@@ -122,137 +130,109 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
             roi.line_info[i].update_lines(p1, p2, getCotangent(p1, p2));
         }
     }
-#ifdef DEBUG
-    if (!roi.line_info[0].adaptive_ROI_flag && !roi.line_info[1].adaptive_ROI_flag && lane[0].idx != -1 &&
-        lane[1].idx != -1) { // 둘 다 못 찾았을 경우
-        roi.stat.zero_detected++;
-    } else if ((!roi.line_info[0].adaptive_ROI_flag && lane[0].idx != -1) ||
-               (!roi.line_info[1].adaptive_ROI_flag && lane[1].idx != -1)) { // 둘 중 하나라도 못 찾았을 경우
-        roi.stat.one_detected++;
-    }
-//    roi.line_info[0].print_all();
-//    roi.line_info[1].print_all();
-#endif
+#ifdef DETECTION_RATE
+    // 검출 -> 동적 roi가 작동 중이거나 혹은 idx =! -1 인 경우
+    // 미검출 -> 동적 roi가 미작동이면서 idx==-1 인 경우
+    bool left = roi.line_info[0].adaptive_ROI_flag || (lane[0].idx != -1);
+    bool right = roi.line_info[1].adaptive_ROI_flag || (lane[1].idx != -1);
 
+    if (left && right) detected[2]++;
+    else if (left || right) detected[1]++;
+    else detected[0]++;
+
+    frame_cnt++;
+#endif //DETECTION_RATE
     roi.updateROI();
 }
 
 void test(InputArray frame) {
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.restart(); // 타이머 재설정
-#endif
+#endif //TIME_TEST
     Mat road_area = frame.getMat()(Range(DEFAULT_ROI_UP, DEFAULT_ROI_DOWN), Range(DEFAULT_ROI_LEFT, DEFAULT_ROI_RIGHT));
     // 0. to grayscale
     Mat grayscaled;
     cvtColor(road_area, grayscaled, COLOR_BGR2GRAY);
 
 #ifdef SHOW
-
-#ifdef DEBUG
-    tl.stop_both_timer();
-#endif // DEBUG
-
     showImage("gray", grayscaled, 5);
     Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
 #endif // SHOW
-#ifdef SAVE
-    Mat temp1 = grayscaled;
-#ifndef SHOW
+#ifdef VIDEO_SAVE
+    vw.writeFrame(grayscaled, 0);
     Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
-#endif //SHOW
-#endif //SAVE
+#endif //VIDEO_SAVE
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.proc_record(grayscaled); // 0. to grayscale
-#endif // DEBUG
+#endif // TIME_TEST
 
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 150, 145, THRESH_BINARY);
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.proc_record(grayscaled); // 1. 주어진 임계값(default:130)으로 이진화
-#endif
+#endif //TIME_TEST
 
     // 2. apply roi
     Mat roi_applied;
     roi.applyROI(grayscaled, roi_applied);
 
 #ifdef SHOW
-
-#ifdef DEBUG
-    tl.stop_both_timer();
-#endif // DEBUG
-
     roi.applyROI(show_roi, show_roi); // roi 화면 출력용
     showImage("roi", show_roi, 5, FRAME_WIDTH);
 #endif // SHOW
-#ifdef SAVE
-#ifndef SHOW
+#ifdef VIDEO_SAVE
     roi.applyROI(show_roi, show_roi);
-#endif //SHOW
-    hconcat(temp1, show_roi, temp1);
-    cvtColor(temp1, temp1, COLOR_GRAY2BGR);
-#endif //SAVE
+    vw.writeFrame(show_roi, 1);
+#endif //VIDEO_SAVE
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.proc_record(roi_applied); // 2. apply roi
-#endif // DEBUG
+#endif // TIME_TEST
 
     // 3. canny
     Mat edge;
     Canny(roi_applied, edge, 50, 150);
 
 #ifdef SHOW
-
-#ifdef DEBUG
-    tl.stop_both_timer();
-#endif
-
     showImage("edge", edge, 5, 0, FRAME_HEIGHT);
 #endif // SHOW
-#ifdef SAVE
-    Mat temp2;
-    cvtColor(edge, temp2, COLOR_GRAY2BGR);
-#endif //SAVE
-#ifdef DEBUG
+#ifdef VIDEO_SAVE
+    vw.writeFrame(edge, 2);
+#endif //VIDEO_SAVE
+#ifdef TIME_TEST
     tl.proc_record(edge); // 3. canny
-#endif // DEBUG
+#endif // TIME_TEST
 
     // 4. hough line
-    std::vector<Vec4i> lines;
+    std::vector <Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 40, 40);
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.stop_both_timer();
     Mat preview_lines = frame.getMat().clone(); // 필터링 전 검출한 선분 그리기
     drawLines(preview_lines, lines);
 
     tl.proc_record(preview_lines); // 4. hough line
-#endif
+#endif //TIME_TEST
 
     // 5. filter lines
     Mat result = road_area.clone();
     filterLinesWithAdaptiveROI(result, lines);
 
 #ifdef SHOW
-
-#ifdef DEBUG
-    tl.stop_both_timer();
-#endif // DEBUG
-
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
 //    waitKey(0);
 #endif // SHOW
 
-#ifdef DEBUG
+#ifdef TIME_TEST
     tl.proc_record(result); // 5. filter lines
     tl.total_record(frame.getMat(), result); // 6. total
-#endif // DEBUG
-#ifdef SAVE
-    hconcat(temp2, result, temp2);
-    vconcat(temp1, temp2, temp1);
-    video_writer << temp1;
-#endif //SAVE
+#endif // TIME_TEST
+#ifdef VIDEO_SAVE
+    vw.writeFrame(result, 3);
+#endif //VIDEO_SAVE
 }
 
 void videoHandler(const string &file_name) {
@@ -273,9 +253,9 @@ void videoHandler(const string &file_name) {
         if (frame.empty()) {
             break;
         }
-#ifdef DEBUG
+#ifdef TIME_TEST
         tl.prev_img = frame.clone(); // 처리 전 원본 사진 저장
-#endif //DEBUG
+#endif //TIME_TEST
         test(frame);
     }
 
@@ -284,7 +264,7 @@ void videoHandler(const string &file_name) {
 
 
 int main(int argc, char *argv[]) {
-    vector<string> file_list;
+    vector <string> file_list;
     glob(SRC_PREFIX + "*.avi", file_list);
 
     if (file_list.empty()) {
@@ -293,30 +273,36 @@ int main(int argc, char *argv[]) {
     }
 
     for (string &file_name: file_list) {
-#ifdef DEBUG
+#ifdef TIME_TEST
         tl = TimeLapse(6);
         tl.set_tc(1);
 //        tl.set_tc(stoi(argv[1]));
-#endif // DEBUG
-#ifdef SAVE
-        video_writer.open("../result/result1.mp4", VideoWriter::fourcc('a', 'v', 'c', '1'), 30,
-                          Size(2 * FRAME_WIDTH, 2 * FRAME_HEIGHT),
-                          true);
-#endif // SAVE
+#endif // TIME_TEST
+#ifdef VIDEO_SAVE
+        auto pos = file_name.rfind('.');
+        string save_path = "../result/video/" + file_name.substr(pos - 2, 2) + ".mp4";
+        vw = OneVideoWriter(save_path, DEFAULT_ROI_WIDTH, DEFAULT_ROI_HEIGHT, 2, 2, 4);
+#endif //VIDEO_SAVE
+#ifdef DETECTION_RATE
+        for (int i = 0; i < 3; i++) {
+            detected[i] = 0;
+        }
+        frame_cnt = 0;
+#endif //DETECTION_RATE
 #ifdef SHOW
         if (file_name == SRC_PREFIX + "2.avi") continue;
 #endif //SHOW
         videoHandler(file_name);
 
-#ifdef DEBUG
+#ifdef TIME_TEST
         tl.print_info_all();
-        //        cout << "static ROI\n";
-//        cout << file_name << " | " << roi.stat.staticROI << " | "
-//             << (double) roi.stat.staticROI / tl.total_frame * 100 << "%\n";
-//        cout << "zero detected\n";
-//        cout << file_name << "," << roi.stat.zero_detected << "," << tl.total_frame << ","
-//             << (double) roi.stat.zero_detected / tl.total_frame * 100 << "%\n";
-#endif
+#endif //TIME_TEST
+#ifdef DETECTION_RATE
+        for (int i = 0; i < 3; i++) {
+            cout << detected[i] << ',';
+        }
+        cout << frame_cnt << '\n';
+#endif //DETECTION_RATE
     }
     return 0;
 }
