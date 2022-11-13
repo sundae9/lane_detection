@@ -179,7 +179,7 @@ void test(InputArray frame) {
     // 2. apply roi
     Mat roi_applied;
     roi.applyROI(grayscaled, roi_applied);
-    int white = adaptiveThresh.updateThresholding(roi_applied);
+    auto white = adaptiveThresh.updateThresh(roi_applied);
 
 #ifdef SHOW
     roi.applyROI(show_roi, show_roi); // roi 화면 출력용
@@ -225,8 +225,15 @@ void test(InputArray frame) {
     filterLinesWithAdaptiveROI(result, lines);
 
 #ifdef SHOW
+#ifdef THRESH_DEBUG
+    putText(result, cv::format("%f %f", ((double) white.first / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200),
+                               ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200)),
+            Point(50, 50),
+            0, 1,
+            Scalar(0, 0, 255), 2);
+#endif //THRESH_DEBUG
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
-    waitKey(0);
+//    waitKey(0);
 #endif // SHOW
 
 #ifdef TIME_TEST
@@ -234,9 +241,12 @@ void test(InputArray frame) {
     tl.total_record(frame.getMat(), result); // 6. total
 #endif // TIME_TEST
 #ifdef VIDEO_SAVE
-    putText(result, cv::format("%f", ((double) white / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 100)), Point(50, 50),
-            0, 2,
+#ifdef THRESH_DEBUG
+    putText(result, cv::format("%f %f", ((double) white.first / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 50), ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 50)),
+            Point(50, 0),
+            0, 1,
             Scalar(0, 0, 255), 2);
+#endif //THRESH_DEBUG
     vw.writeFrame(result, 3);
 #endif //VIDEO_SAVE
 }
