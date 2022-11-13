@@ -5,6 +5,7 @@
 #include <opencv2/opencv.hpp> // Mat, fillPoly, bitwise_and,
 #include <vector>
 #include "./latestInfo.hpp"
+#include "./adaptiveThresh.hpp"
 
 class ROI {
 public:
@@ -12,6 +13,7 @@ public:
     cv::Mat default_mask[2];
     cv::Mat ROI_mask[2];
     LatestInfo line_info[2];
+    AdaptiveThresh adaptiveThresh[2];
 
     ROI();
 
@@ -23,6 +25,15 @@ public:
 
     void updateROI();
 
+    void triggerInit(int pos) {
+        this->line_info[pos].undetected_cnt = UNDETECTED_STD;
+    }
+
+    void applyBothThresholding(cv::InputArray src, cv::OutputArray dst) {
+        for (int i = 0; i < 2; i++) {
+            adaptiveThresh[i].applyThresholding(src, dst, i);
+        }
+    }
 };
 
 /**
@@ -60,6 +71,10 @@ void ROI::applyROI(cv::InputArray frame, cv::OutputArray result) {
     cv::Mat mask;
     cv::bitwise_or(this->ROI_mask[0], this->ROI_mask[1], mask);
     cv::bitwise_and(frame, mask, result);
+
+    for (int i = 0; i < 2; i++) {
+        adaptiveThresh[i].updateThresh(result, i);
+    }
 }
 
 /**
@@ -69,13 +84,13 @@ void ROI::updateAdaptiveMask(int pos) {
     // 동적 roi mask 갱신
     this->ROI_mask[pos] = cv::Mat::zeros(DEFAULT_ROI_HEIGHT, DEFAULT_ROI_WIDTH, CV_8U);
     Line_info avg = line_info[pos].line;
-    std::vector <cv::Point> polygon;
+    std::vector<cv::Point> polygon;
 
     polygon.assign({
                            {avg.x_bottom - DX, DEFAULT_ROI_HEIGHT},
                            {avg.x_bottom + DX, DEFAULT_ROI_HEIGHT},
-                           {avg.x_top + DX,    0},
-                           {avg.x_top - DX,    0}
+                           {avg.x_top + DX, 0},
+                           {avg.x_top - DX, 0}
                    });
     cv::fillPoly(this->ROI_mask[pos], polygon, 255);
 }
@@ -87,15 +102,28 @@ void ROI::updateAdaptiveMask(int pos) {
  * - 동적 -> 정적: roi 초기화 및 line_info(latest_info) 초기화
  */
 void ROI::updateROI() {
+    bool flag[2] = {false, false};
     for (int i = 0; i < 2; i++) {
         // 1. 정적 roi 리셋이 필요한 경우
         if (this->line_info[i].undetected_cnt == UNDETECTED_STD) {
             this->line_info[i].reset();
             this->initROI(i);
+            flag[i] = true;
         } else if (this->line_info[i].undetected_cnt == 0 && this->line_info[i].adaptive_ROI_flag) {
             // 2. 동적 roi 갱신
             this->updateAdaptiveMask(i);
         }
+    }
+
+    if (flag[0] && flag[1]) {
+        adaptiveThresh[0].setThresh(DEFAULT_BINARIZATION_THRESH);
+        adaptiveThresh[1].setThresh(DEFAULT_BINARIZATION_THRESH);
+    } else if (flag[0]) {
+        // 왼쪽 <- 오른쪽
+        adaptiveThresh[0].setThresh(adaptiveThresh[1].getThresh());
+    } else if (flag[1]) {
+        // 오른쪽 <- 왼쪽
+        adaptiveThresh[1].setThresh(adaptiveThresh[0].getThresh());
     }
 }
 

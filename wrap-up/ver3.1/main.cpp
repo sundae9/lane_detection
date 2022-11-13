@@ -1,10 +1,8 @@
 #include <iostream>
 #include "opencv2/opencv.hpp"
 #include "./ROI.hpp"
-#include "./adaptiveThresh.hpp"
 
 ROI roi;
-AdaptiveThresh adaptiveThresh;
 
 #ifdef TIME_TEST
 
@@ -156,11 +154,10 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
                     // 노란색으로 표시
                     line(frame, p1, p2, Scalar(0, 255, 255), 3, 8);
                     // ROI 초기화, 정적 ROI 적용
-                    roi.line_info[i].reset();
-                    roi.initROI(i);
+                    roi.triggerInit(i);
 
                     //여기서 이진화 임계치 업데이트
-                    adaptiveThresh.thresh[i] += 5;
+//                    adaptiveThresh.thresh[i] += 5;
 
                     continue;
                 }
@@ -209,19 +206,22 @@ void test(InputArray frame) {
 #endif // TIME_TEST
 
     // 1. 주어진 임계값(default:130)으로 이진화
-    adaptiveThresh.applyThresholding(grayscaled, grayscaled);
+    roi.applyBothThresholding(grayscaled, grayscaled);
 
 #ifdef TIME_TEST
     tl.proc_record(grayscaled); // 1. 주어진 임계값(default:130)으로 이진화
 #endif //TIME_TEST
 
-    // 2. apply roi
+// 2. apply roi
     Mat roi_applied;
     roi.applyROI(grayscaled, roi_applied);
-    auto white = adaptiveThresh.updateThresh(roi_applied);
+
+//    if (roi.line_info[0].adaptive_ROI_flag) cout << white.first << ',';
+//    if (roi.line_info[1].adaptive_ROI_flag) cout << white.second << ',';
+
 
 #ifdef SHOW
-    roi.applyROI(show_roi, show_roi); // roi 화면 출력용
+//    roi.applyROI(show_roi, show_roi); // roi 화면 출력용
     showImage("roi", roi_applied, 5, FRAME_WIDTH);
 #endif // SHOW
 #ifdef VIDEO_SAVE
@@ -265,14 +265,14 @@ void test(InputArray frame) {
 
 #ifdef SHOW
 #ifdef THRESH_DEBUG
-    putText(result, cv::format("%f %f", ((double) white.first / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200),
-                               ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200)),
-            Point(50, 50),
-            0, 1,
-            Scalar(0, 0, 255), 2);
+//    putText(result, cv::format("%f %f", ((double) white.first / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200),
+//                               ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200)),
+//            Point(50, 50),
+//            0, 1,
+//            Scalar(0, 0, 255), 2);
 #endif //THRESH_DEBUG
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
-//    waitKey(0);
+    waitKey(0);
 #endif // SHOW
 
 #ifdef TIME_TEST
@@ -281,12 +281,13 @@ void test(InputArray frame) {
 #endif // TIME_TEST
 #ifdef VIDEO_SAVE
 #ifdef THRESH_DEBUG
-    putText(result, cv::format("%f %f", ((double) white.first / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 50), ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 50)),
-            Point(50, 0),
-            0, 1,
-            Scalar(0, 0, 255), 2);
+    //    putText(result, cv::format("%f %f", ((double) white.first / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200),
+    //                               ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200)),
+    //            Point(50, 50),
+    //            0, 1,
+    //            Scalar(0, 0, 255), 2);
 #endif //THRESH_DEBUG
-    vw.writeFrame(result, 3);
+        vw.writeFrame(result, 3);
 #endif //VIDEO_SAVE
 }
 
@@ -299,7 +300,6 @@ void videoHandler(const string &file_name) {
     }
 
     roi = ROI();
-    adaptiveThresh = AdaptiveThresh();
 
     Mat frame;
 
@@ -321,7 +321,7 @@ void videoHandler(const string &file_name) {
 
 int main(int argc, char *argv[]) {
     vector<string> file_list;
-    glob(SRC_PREFIX + "*.avi", file_list);
+    glob(SRC_PREFIX + "15.avi", file_list);
 
     if (file_list.empty()) {
         cout << "can't find image list\n";
@@ -356,7 +356,7 @@ int main(int argc, char *argv[]) {
         }
         cout << frame_cnt << '\n';
 #endif //DETECTION_RATE
-//        cout << '\n';
+        cout << '\n';
     }
     return 0;
 }
