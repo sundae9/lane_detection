@@ -55,7 +55,7 @@ double getCotangent(Point p1, Point p2) {
  * @param lines 그릴 선분들
  * @param color 색
  */
-void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
+void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
         line(frame, p1, p2, color, 1, 8);
@@ -67,19 +67,22 @@ void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar 
  * @param frame
  * @param lines
  */
-void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i> &lines) {
+void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i> &lines) {
     struct Data {
-        double grad, diff;
-        int idx;
+        int idx, x_bottom, x_top, diff;
     };
 
     Data lane[2]; // 왼쪽[0], 오른쪽[1] 차선
 
     // 초기화
     for (int i = 0; i < 2; i++) {
-        lane[i].grad = roi.line_info[i].adaptive_ROI_flag ? roi.line_info[i].line.gradient : 0;
-        lane[i].diff = 2.0;
+        lane[i].x_bottom = roi.line_info[i].adaptive_ROI_flag ? roi.line_info[i].line.x_bottom : 0;
+        lane[i].x_top = roi.line_info[i].adaptive_ROI_flag ? roi.line_info[i].line.x_top : 0;
+        lane[i].diff = INT_MAX;
         lane[i].idx = -1;
+
+        // ROI 기준 선 빨간색으로 표시
+        line(frame, {lane[i].x_top, 0}, {lane[i].x_bottom, DEFAULT_ROI_HEIGHT}, Scalar(0, 0, 255), 3, 8);
     }
 
     int idx = -1, pos; // 선분 index, pos: 왼쪽 or 오른쪽
@@ -99,16 +102,25 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
             continue;
         }
 
-        pos = m < 0 ? 0 : 1; // 왼쪽, 오른쪽 결정
+        int current_x_bottom =
+                (p1.x * (p2.y - DEFAULT_ROI_HEIGHT) - p2.x * (p1.y - DEFAULT_ROI_HEIGHT)) / (p2.y - p1.y);
+        int current_x_top = current_x_bottom - DEFAULT_ROI_HEIGHT * m;
 
-        // 기존 값과 차이가 최소인 선분 필터링
-        if (abs(lane[pos].grad - m) < lane[pos].diff) {
-            lane[pos].diff = abs(lane[pos].grad - m);
+        pos = m < 0 ? 0 : 1;  // 왼쪽, 오른쪽 결정
+
+        // 프레임에 표기 (초록색)
+        line(frame, p1, p2, Scalar(0, 255, 0), 1, 8);
+
+        // 제곱 합
+        int power_sum = pow((current_x_bottom - lane[pos].x_bottom), 2) + pow((current_x_top - lane[pos].x_top), 2);
+
+        // 기존 제곱 합과 차이가 최소인 선분
+        if (power_sum < lane[pos].diff) {
+//            cout << lane[pos].x_bottom << " " << lane[pos].x_top << " " << current_x_bottom << " " << current_x_top
+//                 << " " << power_sum << endl;
+            lane[pos].diff = power_sum;
             lane[pos].idx = idx;
         }
-
-        // 프레임에 표기 (붉은색)
-        line(frame, p1, p2, Scalar(0, 255, 0), 1, 8);
     }
 
     // 검출한 선분 update
@@ -127,6 +139,33 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
         } else {
             // 차선 검출 성공
             Point p1(lines[lane[i].idx][0], lines[lane[i].idx][1]), p2(lines[lane[i].idx][2], lines[lane[i].idx][3]);
+
+            // 동적 ROI 기준선 정보
+            Line_info prev[2];
+            prev[0] = roi.line_info[0].line;
+            prev[1] = roi.line_info[1].line;
+
+            // 현재 프레임의 최종 차선 위치 정보
+            int x1 = (p1.x * (p2.y - DEFAULT_ROI_HEIGHT) - p2.x * (p1.y - DEFAULT_ROI_HEIGHT)) / (p2.y - p1.y);
+            int x2 = x1 - DEFAULT_ROI_HEIGHT * m;
+
+            if (roi.line_info[i].adaptive_ROI_flag) {
+                // ROI 테두리 기준 3픽셀 이내에 선이 존재하면 ROI 리셋
+                if ((x1 >= prev[i].x_bottom + DX - 3 || x1 <= prev[i].x_bottom - DX + 3) &&
+                    (x2 >= prev[i].x_top + DX - 3 || x2 <= prev[i].x_top - DX + 3)) {
+                    // 노란색으로 표시
+                    line(frame, p1, p2, Scalar(0, 255, 255), 3, 8);
+                    // ROI 초기화, 정적 ROI 적용
+                    roi.line_info[i].reset();
+                    roi.initROI(i);
+
+                    //여기서 이진화 임계치 업데이트
+                    adaptiveThresh.thresh[i] += 5;
+
+                    continue;
+                }
+            }
+
             // 파란색으로 표기
             line(frame, p1, p2, Scalar(255, 0, 0), 1, 8);
             roi.line_info[i].update_lines(p1, p2, getCotangent(p1, p2));
@@ -209,7 +248,7 @@ void test(InputArray frame) {
 #endif // TIME_TEST
 
     // 4. hough line
-    std::vector <Vec4i> lines;
+    std::vector<Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 40, 40);
 
 #ifdef TIME_TEST
@@ -281,7 +320,7 @@ void videoHandler(const string &file_name) {
 
 
 int main(int argc, char *argv[]) {
-    vector <string> file_list;
+    vector<string> file_list;
     glob(SRC_PREFIX + "*.avi", file_list);
 
     if (file_list.empty()) {
