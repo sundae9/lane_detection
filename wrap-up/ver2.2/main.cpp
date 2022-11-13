@@ -89,6 +89,9 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
 
         m = getCotangent(p1, p2);
+        Line_info prev[2];
+        prev[0] = roi.line_info[0].line;
+        prev[1] = roi.line_info[1].line;
 
         if (abs(m) > GRADIENT_STD) { // 기준 기울기보다 작은 경우 (역수로 계산하므로 부등호 반대)
 #ifdef GRAPHIC
@@ -104,9 +107,17 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector <Vec4i
             lane[pos].diff = abs(lane[pos].grad - m);
             lane[pos].idx = idx;
         }
+        int x1 = (p1.x * (p2.y - DEFAULT_ROI_HEIGHT) - p2.x * (p1.y - DEFAULT_ROI_HEIGHT)) / (p2.y - p1.y);
+        int x2 = x1 - DEFAULT_ROI_HEIGHT * m;
 
-        // 프레임에 표기 (붉은색)
-        line(frame, p1, p2, Scalar(0, 255, 0), 1, 8);
+        if (!roi.line_info[pos].adaptive_ROI_flag) continue;
+        if ((x1 >= prev[pos].x_bottom + DX - 3 || x1 <= prev[pos].x_bottom - DX + 3) &&
+            (x2 >= prev[pos].x_top + DX - 3 || x2 <= prev[pos].x_top - DX + 3)) {
+            line(frame, p1, p2, Scalar(0, 255, 255), 3, 8);
+        } else {
+            // 프레임에 표기 (붉은색)
+            line(frame, p1, p2, Scalar(0, 255, 0), 1, 8);
+        }
     }
 
     // 검출한 선분 update
@@ -223,7 +234,7 @@ void test(InputArray frame) {
 
 #ifdef SHOW
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
-//    waitKey(0);
+    waitKey(0);
 #endif // SHOW
 
 #ifdef TIME_TEST
@@ -265,7 +276,7 @@ void videoHandler(const string &file_name) {
 
 int main(int argc, char *argv[]) {
     vector <string> file_list;
-    glob(SRC_PREFIX + "*.avi", file_list);
+    glob(SRC_PREFIX + "15.avi", file_list);
 
     if (file_list.empty()) {
         cout << "can't find image list\n";
