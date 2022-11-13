@@ -74,8 +74,8 @@ void ROI::updateAdaptiveMask(int pos) {
     polygon.assign({
                            {avg.x_bottom - DX, DEFAULT_ROI_HEIGHT},
                            {avg.x_bottom + DX, DEFAULT_ROI_HEIGHT},
-                           {avg.x_top + DX,    0},
-                           {avg.x_top - DX,    0}
+                           {avg.x_top + DX, 0},
+                           {avg.x_top - DX, 0}
                    });
     cv::fillPoly(this->ROI_mask[pos], polygon, 255);
 }

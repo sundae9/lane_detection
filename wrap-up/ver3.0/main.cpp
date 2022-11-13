@@ -1,8 +1,10 @@
 #include <iostream>
 #include "opencv2/opencv.hpp"
 #include "./ROI.hpp"
+#include "./adaptiveThresh.hpp"
 
 ROI roi;
+AdaptiveThresh adaptiveThresh;
 
 #ifdef TIME_TEST
 
@@ -168,7 +170,7 @@ void test(InputArray frame) {
 #endif // TIME_TEST
 
     // 1. 주어진 임계값(default:130)으로 이진화
-    threshold(grayscaled, grayscaled, 150, 145, THRESH_BINARY);
+    adaptiveThresh.applyThresholding(grayscaled, grayscaled);
 
 #ifdef TIME_TEST
     tl.proc_record(grayscaled); // 1. 주어진 임계값(default:130)으로 이진화
@@ -177,14 +179,15 @@ void test(InputArray frame) {
     // 2. apply roi
     Mat roi_applied;
     roi.applyROI(grayscaled, roi_applied);
+    int white = adaptiveThresh.updateThresholding(roi_applied);
 
 #ifdef SHOW
     roi.applyROI(show_roi, show_roi); // roi 화면 출력용
-    showImage("roi", show_roi, 5, FRAME_WIDTH);
+    showImage("roi", roi_applied, 5, FRAME_WIDTH);
 #endif // SHOW
 #ifdef VIDEO_SAVE
     roi.applyROI(show_roi, show_roi);
-    vw.writeFrame(show_roi, 1);
+    vw.writeFrame(roi_applied, 1);
 #endif //VIDEO_SAVE
 
 #ifdef TIME_TEST
@@ -223,7 +226,7 @@ void test(InputArray frame) {
 
 #ifdef SHOW
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
-//    waitKey(0);
+    waitKey(0);
 #endif // SHOW
 
 #ifdef TIME_TEST
@@ -231,6 +234,9 @@ void test(InputArray frame) {
     tl.total_record(frame.getMat(), result); // 6. total
 #endif // TIME_TEST
 #ifdef VIDEO_SAVE
+    putText(result, cv::format("%f", ((double) white / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 100)), Point(50, 50),
+            0, 2,
+            Scalar(0, 0, 255), 2);
     vw.writeFrame(result, 3);
 #endif //VIDEO_SAVE
 }
@@ -244,6 +250,7 @@ void videoHandler(const string &file_name) {
     }
 
     roi = ROI();
+    adaptiveThresh = AdaptiveThresh();
 
     Mat frame;
 
@@ -289,9 +296,6 @@ int main(int argc, char *argv[]) {
         }
         frame_cnt = 0;
 #endif //DETECTION_RATE
-#ifdef SHOW
-        if (file_name == SRC_PREFIX + "2.avi") continue;
-#endif //SHOW
         videoHandler(file_name);
 
 #ifdef TIME_TEST
@@ -303,6 +307,7 @@ int main(int argc, char *argv[]) {
         }
         cout << frame_cnt << '\n';
 #endif //DETECTION_RATE
+//        cout << '\n';
     }
     return 0;
 }

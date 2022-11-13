@@ -25,5 +25,6 @@
 //#define GRAPHIC
 //#define VIDEO_SAVE
 //#define DETECTION_RATE
+//#define THRESH_DEBUG
 
 #endif //VER3_0_CONSTANT_HPP
