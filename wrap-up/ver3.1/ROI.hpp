@@ -15,6 +15,11 @@ public:
     LatestInfo line_info[2];
     AdaptiveThresh adaptiveThresh[2];
 
+    int dynamic_roi_count[2];
+    int total_frame;
+    int init_count[2];
+
+
     ROI();
 
     void initROI(int pos);
@@ -22,6 +27,12 @@ public:
     void updateAdaptiveMask(int pos);
 
     void applyROI(cv::InputArray frame, cv::OutputArray result);
+
+#if defined(SHOW) || defined(VIDEO_SAVE)
+
+    void applyROI2(cv::InputArray frame, cv::OutputArray result);
+
+#endif
 
     void updateROI();
 
@@ -52,7 +63,12 @@ ROI::ROI() {
     for (int i = 0; i < 2; i++) {
         line_info[i].reset();
         initROI(i);
+        this->dynamic_roi_count[i] = 0;
+        this->init_count[i] = 0;
     }
+
+
+    this->total_frame = 0;
 }
 
 /**
@@ -76,6 +92,22 @@ void ROI::applyROI(cv::InputArray frame, cv::OutputArray result) {
         adaptiveThresh[i].updateThresh(result, i);
     }
 }
+
+#if defined(SHOW) || defined(VIDEO_SAVE)
+
+/**
+ * roi mask를 프레임에 적용
+ * @param frame 1채널 이미지
+ * @param result 결과 받아갈 이미지
+ */
+void ROI::applyROI2(cv::InputArray frame, cv::OutputArray result) {
+    cv::Mat mask;
+    cv::bitwise_or(this->ROI_mask[0], this->ROI_mask[1], mask);
+    cv::bitwise_and(frame, mask, result);
+}
+
+#endif // SHOW || VIDEO_SAVE
+
 
 /**
  * latest_info를 이용해서 동적 마스킹 영역 갱신
@@ -125,6 +157,12 @@ void ROI::updateROI() {
         // 오른쪽 <- 왼쪽
         adaptiveThresh[1].setThresh(adaptiveThresh[0].getThresh());
     }
+
+    for (int i = 0; i < 2; i++) {
+        this->dynamic_roi_count[i] += this->line_info[i].adaptive_ROI_flag ? 1 : 0;
+        this->init_count[i] += flag[i] ? 1 : 0;
+    }
+    this->total_frame++;
 }
 
 #endif //VER3_1_ROI_HPP

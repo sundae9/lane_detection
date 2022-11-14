@@ -5,7 +5,7 @@
 #include "./constant.hpp"
 
 #define QUE_MAX_SIZE 5
-#define UNDETECTED_STD 5
+#define UNDETECTED_STD 10
 
 struct Line_info {
     int x_bottom, x_top;

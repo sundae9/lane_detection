@@ -20,6 +20,7 @@
 #define GRADIENT_STD 2 // cotanent(30 deg) = 1.73
 
 #define DEFAULT_BINARIZATION_THRESH 150
+#define BORDERLINE_OFFSET 2
 
 // MODE
 //#define SHOW //imshow  활성화

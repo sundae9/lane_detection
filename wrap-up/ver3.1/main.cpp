@@ -85,6 +85,8 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 
     int idx = -1, pos; // 선분 index, pos: 왼쪽 or 오른쪽
     double m;
+    int weight = 0;
+
 
     for (Vec4i pts: lines) {
         idx++;
@@ -110,13 +112,19 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
         line(frame, p1, p2, Scalar(0, 255, 0), 1, 8);
 
         // 제곱 합
-        int power_sum = pow((current_x_bottom - lane[pos].x_bottom), 2) + pow((current_x_top - lane[pos].x_top), 2);
+
+
+        if (roi.line_info[pos].adaptive_ROI_flag) {
+            weight = pow((current_x_bottom - lane[pos].x_bottom), 2) + pow((current_x_top - lane[pos].x_top), 2);
+        } else {
+            weight = abs(getCotangent(p1, p2));
+        }
 
         // 기존 제곱 합과 차이가 최소인 선분
-        if (power_sum < lane[pos].diff) {
+        if (weight < lane[pos].diff) {
 //            cout << lane[pos].x_bottom << " " << lane[pos].x_top << " " << current_x_bottom << " " << current_x_top
 //                 << " " << power_sum << endl;
-            lane[pos].diff = power_sum;
+            lane[pos].diff = weight;
             lane[pos].idx = idx;
         }
     }
@@ -149,8 +157,9 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 
             if (roi.line_info[i].adaptive_ROI_flag) {
                 // ROI 테두리 기준 3픽셀 이내에 선이 존재하면 ROI 리셋
-                if ((x1 >= prev[i].x_bottom + DX - 3 || x1 <= prev[i].x_bottom - DX + 3) &&
-                    (x2 >= prev[i].x_top + DX - 3 || x2 <= prev[i].x_top - DX + 3)) {
+                if ((x1 >= prev[i].x_bottom + DX - BORDERLINE_OFFSET && x2 >= prev[i].x_top + DX - BORDERLINE_OFFSET
+                    ) ||
+                    (x1 <= prev[i].x_bottom - DX + BORDERLINE_OFFSET && x2 <= prev[i].x_top - DX + BORDERLINE_OFFSET)) {
                     // 노란색으로 표시
                     line(frame, p1, p2, Scalar(0, 255, 255), 3, 8);
                     // ROI 초기화, 정적 ROI 적용
@@ -221,12 +230,12 @@ void test(InputArray frame) {
 
 
 #ifdef SHOW
-//    roi.applyROI(show_roi, show_roi); // roi 화면 출력용
-    showImage("roi", roi_applied, 5, FRAME_WIDTH);
+    roi.applyROI2(show_roi, show_roi); // roi 화면 출력용
+    showImage("roi", show_roi, 5, FRAME_WIDTH);
 #endif // SHOW
 #ifdef VIDEO_SAVE
-    roi.applyROI(show_roi, show_roi);
-    vw.writeFrame(roi_applied, 1);
+    roi.applyROI2(show_roi, show_roi);
+    vw.writeFrame(show_roi, 1);
 #endif //VIDEO_SAVE
 
 #ifdef TIME_TEST
@@ -265,11 +274,11 @@ void test(InputArray frame) {
 
 #ifdef SHOW
 #ifdef THRESH_DEBUG
-//    putText(result, cv::format("%f %f", ((double) white.first / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200),
-//                               ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200)),
-//            Point(50, 50),
-//            0, 1,
-//            Scalar(0, 0, 255), 2);
+    //    putText(result, cv::format("%f %f", ((double) white.first / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200),
+    //                               ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200)),
+    //            Point(50, 50),
+    //            0, 1,
+    //            Scalar(0, 0, 255), 2);
 #endif //THRESH_DEBUG
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
     waitKey(0);
@@ -287,7 +296,7 @@ void test(InputArray frame) {
     //            0, 1,
     //            Scalar(0, 0, 255), 2);
 #endif //THRESH_DEBUG
-        vw.writeFrame(result, 3);
+    vw.writeFrame(result, 3);
 #endif //VIDEO_SAVE
 }
 
@@ -321,7 +330,7 @@ void videoHandler(const string &file_name) {
 
 int main(int argc, char *argv[]) {
     vector<string> file_list;
-    glob(SRC_PREFIX + "15.avi", file_list);
+    glob(SRC_PREFIX + "*.avi", file_list);
 
     if (file_list.empty()) {
         cout << "can't find image list\n";
@@ -356,7 +365,9 @@ int main(int argc, char *argv[]) {
         }
         cout << frame_cnt << '\n';
 #endif //DETECTION_RATE
-        cout << '\n';
+        cout << roi.dynamic_roi_count[0] << ", " << roi.dynamic_roi_count[1] << ", " << roi.init_count[0] << ", "
+             << roi.init_count[1] << ", " << roi.total_frame << endl;
+
     }
     return 0;
 }
