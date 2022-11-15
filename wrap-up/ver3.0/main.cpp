@@ -58,7 +58,7 @@ double getCotangent(Point p1, Point p2) {
 void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
-        line(frame, p1, p2, color, 1, 8);
+        line(frame, p1, p2, color, 1, LINE_AA);
     }
 }
 
@@ -99,7 +99,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 
         if (abs(m) > GRADIENT_STD) { // 기준 기울기보다 작은 경우 (역수로 계산하므로 부등호 반대)
 #ifdef GRAPHIC
-            line(frame, p1, p2, Scalar(0, 0, 255), 1, 8);
+            line(frame, p1, p2, Scalar(0, 0, 255), 1, LINE_AA);
 #endif //GRAPHIC
             continue;
         }
@@ -111,7 +111,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
         pos = m < 0 ? 0 : 1;  // 왼쪽, 오른쪽 결정
 
         // 프레임에 표기 (초록색)
-        line(frame, p1, p2, Scalar(0, 255, 0), 1, 8);
+        line(frame, p1, p2, Scalar(0, 255, 0), 1, LINE_AA);
 
         // 제곱 합
         int power_sum = pow((current_x_bottom - lane[pos].x_bottom), 2) + pow((current_x_top - lane[pos].x_top), 2);
@@ -137,7 +137,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 
             // 기존 값으로 차로 표기
             Line_info prev = roi.line_info[i].line;
-            line(frame, {prev.x_bottom, DEFAULT_ROI_HEIGHT}, {prev.x_top, 0}, Scalar(255, 0, 0), 1, 8);
+            line(frame, {prev.x_bottom, DEFAULT_ROI_HEIGHT}, {prev.x_top, 0}, Scalar(255, 0, 0), 1, LINE_AA);
         } else {
             // 차선 검출 성공
             Point p1(lines[lane[i].idx][0], lines[lane[i].idx][1]), p2(lines[lane[i].idx][2], lines[lane[i].idx][3]);
@@ -156,7 +156,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
                 if ((x1 >= prev[i].x_bottom + DX - 3 || x1 <= prev[i].x_bottom - DX + 3) &&
                     (x2 >= prev[i].x_top + DX - 3 || x2 <= prev[i].x_top - DX + 3)) {
                     // 노란색으로 표시
-                    line(frame, p1, p2, Scalar(0, 255, 255), 3, 8);
+                    line(frame, p1, p2, Scalar(0, 255, 255), 3, LINE_AA);
                     // ROI 초기화, 정적 ROI 적용
                     roi.line_info[i].reset();
                     roi.initROI(i);
@@ -169,7 +169,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
             }
 
             // 파란색으로 표기
-            line(frame, p1, p2, Scalar(255, 0, 0), 1, 8);
+            line(frame, p1, p2, Scalar(255, 0, 0), 1, LINE_AA);
             roi.line_info[i].update_lines(p1, p2, getCotangent(p1, p2));
         }
     }
