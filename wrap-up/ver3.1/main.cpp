@@ -1,6 +1,7 @@
 #include <iostream>
 #include "opencv2/opencv.hpp"
 #include "./ROI.hpp"
+#include <stdlib.h>
 
 ROI roi;
 
@@ -338,6 +339,12 @@ int main(int argc, char *argv[]) {
         cout << "can't find image list\n";
         return 1;
     }
+    
+#ifdef VIDEO_SAVE
+    string dst_prefix = "../result/video/";
+    string cmd = "mkdir " + dst_prefix + argv[1];
+    system(cmd.c_str());
+#endif
 
     for (string &file_name: file_list) {
 #ifdef TIME_TEST
@@ -347,7 +354,7 @@ int main(int argc, char *argv[]) {
 #endif // TIME_TEST
 #ifdef VIDEO_SAVE
         auto pos = file_name.rfind('.');
-        string save_path = "../result/video/" + file_name.substr(pos - 2, 2) + ".mp4";
+        string save_path = dst_prefix + argv[1] + "/" + file_name.substr(pos - 2, 2) + ".mp4";
         vw = OneVideoWriter(save_path, DEFAULT_ROI_WIDTH, DEFAULT_ROI_HEIGHT, 2, 2, 4);
 #endif //VIDEO_SAVE
 #ifdef DETECTION_RATE

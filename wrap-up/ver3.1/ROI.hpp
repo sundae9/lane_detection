@@ -89,7 +89,7 @@ void ROI::applyROI(cv::InputArray frame, cv::OutputArray result) {
     cv::bitwise_and(frame, mask, result);
 
     for (int i = 0; i < 2; i++) {
-        adaptiveThresh[i].updateThresh(result, i);
+        adaptiveThresh[i].updateThresh(result, i, this->line_info[i].adaptive_ROI_flag);
     }
 }
 

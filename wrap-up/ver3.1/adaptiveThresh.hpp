@@ -17,7 +17,7 @@ public:
 
     void applyThresholding(cv::InputArray src, cv::OutputArray dst, int pos);
 
-    int updateThresh(cv::InputArray src, int pos);
+    int updateThresh(cv::InputArray src, int pos, bool is_adaptive);
 
     int getThresh() {
         return this->thresh;
@@ -48,7 +48,7 @@ void AdaptiveThresh::applyThresholding(cv::InputArray src, cv::OutputArray dst, 
  * @param src 이진화 된 프레임
  * @return 전체 픽셀 중 하얗게 표기 된 픽셀 수
  */
-int AdaptiveThresh::updateThresh(cv::InputArray src, int pos) {
+int AdaptiveThresh::updateThresh(cv::InputArray src, int pos, bool is_adaptive) {
     cv::Mat frame = src.getMat();
     int white = 0;
     int offset = pos == 0 ? 0 : DEFAULT_ROI_WIDTH / 2;
@@ -61,21 +61,25 @@ int AdaptiveThresh::updateThresh(cv::InputArray src, int pos) {
     }
 
 #ifdef THRESH_DEBUG
-//    std::cout << ' ' << (double) white[0] / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200 << ' '
-//              << (double) white[1] / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200 << ' ';
-//    std::cout << white[0] << ' ' << white[1] << ' ' << DEFAULT_ROI_WIDTH * DEFAULT_ROI_HEIGHT * 0.05 / 2 << ' ';
+    //    std::cout << ' ' << (double) white[0] / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200 << ' '
+    //              << (double) white[1] / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200 << ' ';
+    //    std::cout << white[0] << ' ' << white[1] << ' ' << DEFAULT_ROI_WIDTH * DEFAULT_ROI_HEIGHT * 0.05 / 2 << ' ';
 #endif
+    double upper, lower;
+
+    upper = is_adaptive ? 0.05 : 0.1;
+    lower = is_adaptive ? 0.01 : 0.015;
 
     // 5% 초과 혹은 1% 미만일 경우 임계치 조정
-    if (white > DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH * 0.05 / 2) {
+    if (white > DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH * upper / 2) {
         this->thresh += 5;
-    } else if (white < DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH * 0.01 / 2) {
+    } else if (white < DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH * lower / 2) {
         this->thresh -= 5;
     }
 
-#ifdef THRESH_DEBUG
-    std::cout << pos << ' ' << white << ' ' << this->thresh << '\n';
-#endif
+//#ifdef THRESH_DEBUG
+//    std::cout << pos << ' ' << white << ' ' << this->thresh << '\n';
+//#endif
     return white;
 }
 
