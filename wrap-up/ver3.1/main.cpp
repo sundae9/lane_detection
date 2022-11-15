@@ -258,7 +258,7 @@ void test(InputArray frame) {
 
     // 4. hough line
     std::vector<Vec4i> lines;
-    HoughLinesP(edge, lines, 1, CV_PI / 180, 30, 40, 40);
+    HoughLinesP(edge, lines, 1, CV_PI / 180, HOUGH_PARAM1, HOUGH_PARAM2, HOUGH_PARAM3);
 
 #ifdef TIME_TEST
     tl.stop_both_timer();

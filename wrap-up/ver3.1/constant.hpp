@@ -23,6 +23,10 @@
 #define DEFAULT_BINARIZATION_THRESH 150
 #define BORDERLINE_OFFSET 2
 
+#define HOUGH_PARAM1 30
+#define HOUGH_PARAM2 20
+#define HOUGH_PARAM3 40
+
 // MODE
 //#define SHOW //imshow  활성화
 #define TIME_TEST // 출력 문구
@@ -31,5 +35,7 @@
 //#define DETECTION_RATE
 //#define THRESH_DEBUG
 //#define ROI_STAT
+
+
 
 #endif //VER3_1_CONSTANT_HPP
