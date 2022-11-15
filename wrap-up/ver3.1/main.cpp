@@ -175,9 +175,9 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
                     continue;
                 }
             }
-
+            
             // 파란색으로 표기
-            line(frame, p1, p2, Scalar(255, 0, 0), 1, 8, LINE_AA);
+            line(frame, p1, p2, Scalar(255, 0, 0), 1, LINE_AA);
             roi.line_info[i].update_lines(p1, p2, getCotangent(p1, p2));
         }
     }
@@ -283,7 +283,7 @@ void test(InputArray frame) {
     // 5. filter lines
     Mat result = road_area.clone();
     filterLinesWithAdaptiveROI(result, lines);
-    
+
 #if defined(SHOW) || defined(VIDEO_SAVE)
     result.copyTo(road_area);
 
