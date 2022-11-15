@@ -10,9 +10,11 @@
 class AdaptiveThresh {
 public:
     int thresh;
+    int white;
 
     AdaptiveThresh() {
         this->thresh = 150;
+        this->white = 0;
     }
 
     void applyThresholding(cv::InputArray src, cv::OutputArray dst);
@@ -37,28 +39,22 @@ void AdaptiveThresh::applyThresholding(cv::InputArray src, cv::OutputArray dst) 
  */
 int AdaptiveThresh::updateThresholding(cv::InputArray src) {
     cv::Mat frame = src.getMat();
-    int white = 0;
+    int new_white = 0;
     for (int i = 0; i < DEFAULT_ROI_HEIGHT; i++) {
         uchar *ptr = frame.ptr<uchar>(i);
         for (int j = 0; j < DEFAULT_ROI_WIDTH; j++) {
-            if (ptr[j]) white++;
+            if (ptr[j]) new_white++;
         }
     }
+    this->white = new_white;
 
-#ifdef THRESH_DEBUG
-    std::cout << this->thresh << ' ' << (double) white / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 100 << ' ';
-#endif
     // 5% 초과 혹은 1% 미만일 경우 임계치 조정
-    if (white > DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH * 0.05) {
+    if (this->white > DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH * 0.05) {
         this->thresh += 5;
-    } else if (white < DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH * 0.01) {
+    } else if (this->white < DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH * 0.01) {
         this->thresh -= 5;
     }
-
-#ifdef THRESH_DEBUG
-    std::cout << this->thresh << '\n';
-#endif
-    return white;
+    return this->white;
 }
 
 #endif //VER3_0_ADAPTIVETHRESH_HPP
