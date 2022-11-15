@@ -1,7 +1,7 @@
 #include <iostream>
 #include "opencv2/opencv.hpp"
 #include "./ROI.hpp"
-#include <stdlib.h>
+#include <cstdlib>
 
 ROI roi;
 
@@ -68,7 +68,8 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar c
  */
 void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i> &lines) {
     struct Data {
-        int idx, x_bottom, x_top, diff;
+        int idx, x_bottom, x_top;
+        double diff;
     };
 
     Data lane[2]; // 왼쪽[0], 오른쪽[1] 차선
@@ -80,13 +81,15 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
         lane[i].diff = INT_MAX;
         lane[i].idx = -1;
 
-        // ROI 기준 선 빨간색으로 표시
-        line(frame, {lane[i].x_top, 0}, {lane[i].x_bottom, DEFAULT_ROI_HEIGHT}, Scalar(0, 0, 255), 3, LINE_AA);
+        if (lane[i].x_bottom != 0 || lane[i].x_top != 0) {
+            // ROI 기준 선 빨간색으로 표시
+            line(frame, {lane[i].x_top, 0}, {lane[i].x_bottom, DEFAULT_ROI_HEIGHT}, Scalar(0, 0, 255), 3, LINE_AA);
+        }
     }
 
     int idx = -1, pos; // 선분 index, pos: 왼쪽 or 오른쪽
     double m;
-    int weight = 0;
+    double weight = 0;
 
 
     for (Vec4i pts: lines) {
@@ -174,7 +177,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
             }
 
             // 파란색으로 표기
-            line(frame, p1, p2, Scalar(255, 0, 0), 1, 8);
+            line(frame, p1, p2, Scalar(255, 0, 0), 1, 8, LINE_AA);
             roi.line_info[i].update_lines(p1, p2, getCotangent(p1, p2));
         }
     }
@@ -202,14 +205,11 @@ void test(InputArray frame) {
     Mat grayscaled;
     cvtColor(road_area, grayscaled, COLOR_BGR2GRAY);
 
-#ifdef SHOW
-    showImage("gray", grayscaled, 5);
+#if defined(SHOW) || defined(VIDEO_SAVE)
+    Mat save_frame = Mat::zeros(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
+    Mat save_roi = save_frame(Range(DEFAULT_ROI_UP, DEFAULT_ROI_DOWN), Range(DEFAULT_ROI_LEFT, DEFAULT_ROI_RIGHT));
     Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
-#endif // SHOW
-#ifdef VIDEO_SAVE
-    vw.writeFrame(grayscaled, 0);
-    Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
-#endif //VIDEO_SAVE
+#endif //SHOW or VIDEO_SAVE
 
 #ifdef TIME_TEST
     tl.proc_record(grayscaled); // 0. to grayscale
@@ -226,18 +226,25 @@ void test(InputArray frame) {
     Mat roi_applied;
     roi.applyROI(grayscaled, roi_applied);
 
-//    if (roi.line_info[0].adaptive_ROI_flag) cout << white.first << ',';
-//    if (roi.line_info[1].adaptive_ROI_flag) cout << white.second << ',';
-
+#if defined(SHOW) || defined(VIDEO_SAVE)
+    roi.applyROI2(show_roi, show_roi);
+    cvtColor(show_roi, save_roi, COLOR_GRAY2BGR);
 
 #ifdef SHOW
-    roi.applyROI2(show_roi, show_roi); // roi 화면 출력용
-    showImage("roi", show_roi, 5, FRAME_WIDTH);
-#endif // SHOW
+    showImage("roi", save_frame, 5);
+#endif //SHOW
 #ifdef VIDEO_SAVE
-    roi.applyROI2(show_roi, show_roi);
-    vw.writeFrame(show_roi, 1);
+    vw.writeFrame(save_frame, 0);
 #endif //VIDEO_SAVE
+    cvtColor(roi_applied, save_roi, COLOR_GRAY2BGR);
+#ifdef SHOW
+    showImage("threshold", save_frame, 5, FRAME_WIDTH);
+#endif //SHOW
+#ifdef VIDEO_SAVE
+    vw.writeFrame(save_frame, 1);
+#endif //VIDEO_SAVE
+
+#endif //SHOW or VIDEO_SAVE
 
 #ifdef TIME_TEST
     tl.proc_record(roi_applied); // 2. apply roi
@@ -247,12 +254,16 @@ void test(InputArray frame) {
     Mat edge;
     Canny(roi_applied, edge, 50, 150);
 
+#if defined(SHOW) || defined(VIDEO_SAVE)
+    cvtColor(edge, save_roi, COLOR_GRAY2BGR);
 #ifdef SHOW
-    showImage("edge", edge, 5, 0, FRAME_HEIGHT);
-#endif // SHOW
+    showImage("edge", save_frame, 5, 0, FRAME_HEIGHT);
+#endif //SHOW
 #ifdef VIDEO_SAVE
-    vw.writeFrame(edge, 2);
+    vw.writeFrame(save_frame, 2);
 #endif //VIDEO_SAVE
+#endif //SHOW or VIDEO_SAVE
+
 #ifdef TIME_TEST
     tl.proc_record(edge); // 3. canny
 #endif // TIME_TEST
@@ -272,51 +283,39 @@ void test(InputArray frame) {
     // 5. filter lines
     Mat result = road_area.clone();
     filterLinesWithAdaptiveROI(result, lines);
+    
+#if defined(SHOW) || defined(VIDEO_SAVE)
+    result.copyTo(road_area);
 
-#ifdef SHOW
 #ifdef THRESH_DEBUG
-    putText(result,
-            cv::format("%7d %18d",
-                       (roi.adaptiveThresh[0].white),
-                       (roi.adaptiveThresh[1].white)),
-            Point(20, 20),
-            0, 0.8,
-            Scalar(0, 0, 255), 1);
-    putText(result,
-            cv::format("%7d %18d",
+    putText(frame.getMat(),
+            cv::format("%7.3f %11.3f",
+                       ((double) roi.adaptiveThresh[0].white / (DEFAULT_ROI_WIDTH * DEFAULT_ROI_HEIGHT) * 200),
+                       ((double) roi.adaptiveThresh[1].white / (DEFAULT_ROI_WIDTH * DEFAULT_ROI_HEIGHT) * 200)),
+            Point(120, 170),
+            0, 1,
+            Scalar(0, 255, 255), 2);
+    putText(frame.getMat(),
+            cv::format("%7d %11d",
                        (roi.adaptiveThresh[0].thresh),
                        (roi.adaptiveThresh[1].thresh)),
-            Point(20, 40),
-            0, 0.8,
-            Scalar(0, 0, 255), 1);
+            Point(120, 200),
+            0, 1,
+            Scalar(0, 255, 255), 2);
 #endif //THRESH_DEBUG
-    showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
-    waitKey(0);
-#endif // SHOW
+#ifdef SHOW
+    showImage("result", frame, 5, FRAME_WIDTH, FRAME_HEIGHT);
+//    waitKey(0);
+#endif //SHOW
+#ifdef VIDEO_SAVE
+    vw.writeFrame(frame.getMat(), 3);
+#endif //VIDEO_SAVE
+#endif //SHOW or VIDEO_SAVE
 
 #ifdef TIME_TEST
     tl.proc_record(result); // 5. filter lines
     tl.total_record(frame.getMat(), result); // 6. total
 #endif // TIME_TEST
-#ifdef VIDEO_SAVE
-#ifdef THRESH_DEBUG
-    putText(result,
-        cv::format("%7d %18d",
-                   (roi.adaptiveThresh[0].white),
-                   (roi.adaptiveThresh[1].white)),
-        Point(20, 20),
-        0, 0.8,
-        Scalar(0, 0, 255), 1);
-putText(result,
-        cv::format("%7d %18d",
-                   (roi.adaptiveThresh[0].thresh),
-                   (roi.adaptiveThresh[1].thresh)),
-        Point(20, 40),
-        0, 0.8,
-        Scalar(0, 0, 255), 1);
-#endif //THRESH_DEBUG
-vw.writeFrame(result, 3);
-#endif //VIDEO_SAVE
 }
 
 void videoHandler(const string &file_name) {
@@ -371,7 +370,7 @@ int main(int argc, char *argv[]) {
 #ifdef VIDEO_SAVE
         auto pos = file_name.rfind('.');
         string save_path = dst_prefix + argv[1] + "/" + file_name.substr(pos - 2, 2) + ".avi";
-        vw = OneVideoWriter(save_path, DEFAULT_ROI_WIDTH, DEFAULT_ROI_HEIGHT, 2, 2, 4);
+        vw = OneVideoWriter(save_path, FRAME_WIDTH, FRAME_HEIGHT, 2, 2, 4);
 #endif //VIDEO_SAVE
 #ifdef DETECTION_RATE
         for (int i = 0; i < 3; i++) {
@@ -380,7 +379,9 @@ int main(int argc, char *argv[]) {
         frame_cnt = 0;
 #endif //DETECTION_RATE
         videoHandler(file_name);
-
+#ifdef VIDEO_SAVE
+        cout << "completed: " << save_path << '\n';
+#endif //VIDEO_SAVE
 #ifdef TIME_TEST
         tl.print_info_all();
 #endif //TIME_TEST
