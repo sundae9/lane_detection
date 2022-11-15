@@ -3,6 +3,7 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
+#include <stdlib.h>
 
 using namespace cv;
 using namespace std;
@@ -54,11 +55,12 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     string result_path;
+    string cmd = "mkdir " + DST_PREFIX + argv[3];
+    system(cmd.c_str());
     for (int i = 0; i < file_list[0].size(); i++) {
-        result_path = DST_PREFIX + cv::format("%02d", i + 1) + ".mp4";
 
         auto pos = file_list[0][i].rfind('.');
-        result_path = DST_PREFIX + file_list[0][i].substr(pos - 2, 2) + ".mp4";
+        result_path = DST_PREFIX + argv[3] + "/" + file_list[0][i].substr(pos - 2, 2) + ".mp4";
 
         makeVideo(file_list[0][i], file_list[1][i], result_path);
         cout << "completed: " << result_path << '\n';
