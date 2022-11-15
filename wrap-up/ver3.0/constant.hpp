@@ -19,6 +19,10 @@
 // 기타 변수
 #define GRADIENT_STD 2 // cotanent(30 deg) = 1.73
 
+#define HOUGH_PARAM1 30
+#define HOUGH_PARAM2 40
+#define HOUGH_PARAM3 40
+
 // MODE
 //#define SHOW //imshow  활성화
 #define TIME_TEST // 출력 문구
