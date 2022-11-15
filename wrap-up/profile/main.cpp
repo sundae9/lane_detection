@@ -10,7 +10,7 @@ using namespace std;
 
 OneVideoWriter vw;
 
-const string SRC_PREFIX = "../../ver3.1/result/video/";
+const string SRC_PREFIX = "../../";
 const string DST_PREFIX = "../result/video/";
 
 void makeVideo(string path1, string path2, string dst_path) {
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     vector<string> file_list[2];
 
     for (int i = 0; i < 2; i++) {
-        glob(SRC_PREFIX + argv[i + 1] + "/*.mp4", file_list[i]);
+        glob(SRC_PREFIX + argv[2 * i + 1] + "/result/video/" + argv[2 * i + 2] + "/*.mp4", file_list[i]);
         sort(file_list[i].begin(), file_list[i].end());
     }
 
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     string result_path;
-    string cmd = "mkdir " + DST_PREFIX + argv[3];
+    string cmd = "mkdir " + DST_PREFIX + argv[5];
     system(cmd.c_str());
     for (int i = 0; i < file_list[0].size(); i++) {
 

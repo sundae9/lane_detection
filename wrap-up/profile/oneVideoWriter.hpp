@@ -39,7 +39,7 @@ OneVideoWriter::OneVideoWriter(std::string file_path, int width, int height, int
     this->col = col;
     this->proc_cnt = proc_cnt;
 
-    vw.open(file_path, cv::VideoWriter::fourcc('a', 'v', 'c', '1'), 30, cv::Size(col * width, row * height), true);
+    vw.open(file_path, cv::VideoWriter::fourcc('p', 'n', 'g', ' '), 30, cv::Size(col * width, row * height), true);
     this->merged_frame = cv::Mat(row * height, col * width, CV_8UC3);
 }
 
