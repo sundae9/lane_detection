@@ -25,7 +25,7 @@ OneVideoWriter vw;
 
 const string SRC_PREFIX = "../../video/";
 
-vector <Point> roi_polygon(4);
+vector<Point> roi_polygon(4);
 
 // 공통 함수
 void showImage(const string &label, InputArray img, int t = 0) {
@@ -59,10 +59,11 @@ void applyStaticROI(InputArray frame, OutputArray result) {
  * @param lines 그릴 선분들
  * @param color 색
  */
-void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
+void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar color = Scalar(0, 255, 0),
+               int thickness = 1) {
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
-        line(frame, p1, p2, color, 1, 8);
+        line(frame, p1, p2, color, thickness, LINE_AA);
     }
 }
 
@@ -72,9 +73,9 @@ void drawLines(InputOutputArray frame, const std::vector <Vec4i> &lines, Scalar 
  * @param lines
  * @return 검출된 라인 수
  */
-void filterLines(InputOutputArray frame, const std::vector <Vec4i> &lines) {
+void filterLines(InputOutputArray frame, const std::vector<Vec4i> &lines) {
     double left_max = 0, right_max = 0;
-    std::vector <Vec4i> lane(2);
+    std::vector<Vec4i> lane(2);
 #ifdef DETECTION_RATE
     bool left = false, right = false;
 #endif //DETECTION_RATE
@@ -106,7 +107,7 @@ void filterLines(InputOutputArray frame, const std::vector <Vec4i> &lines) {
         }
         drawLines(frame, {pts});
     }
-    drawLines(frame, lane, Scalar(255, 0, 0));
+    drawLines(frame, lane, Scalar(255, 0, 0), 3);
 #ifdef DETECTION_RATE
     if (left && right) detected[2]++;
     else if (left || right) detected[1]++;
@@ -126,9 +127,8 @@ void test(InputArray frame) {
     tl.proc_record(grayscaled); // 0. grayscale
 #endif //TIMETEST
 #ifdef VIDEO_SAVE
-    vw.writeFrame(grayscaled, 0);
-#endif //VIDEO_SAVE
-
+    Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
+#endif //SHOW or VIDEO_SAVE
     // 1. 주어진 임계값(default:130)으로 이진화
     threshold(grayscaled, grayscaled, 130, 145, THRESH_BINARY);
 
@@ -145,6 +145,10 @@ void test(InputArray frame) {
     tl.proc_record(roi); // 2. apply roi
 #endif //TIMETEST
 #ifdef VIDEO_SAVE
+    applyStaticROI(show_roi, show_roi);
+
+    vw.writeFrame(show_roi, 0);
+
     vw.writeFrame(roi, 1);
 #endif //VIDEO_SAVE
 
@@ -160,7 +164,7 @@ void test(InputArray frame) {
 #endif //VIDEO_SAVE
 
     // 4. hough line
-    std::vector <Vec4i> lines;
+    std::vector<Vec4i> lines;
     HoughLinesP(edge, lines, 1, CV_PI / 180, 10, 100, 200);
 #ifdef TIMETEST
     tl.stop_both_timer();
@@ -201,11 +205,7 @@ void videoHandler(const string &file_name) {
     }
     total = 0;
 #endif //DETECTION_RATE
-#ifdef VIDEO_SAVE
-    auto pos = file_name.rfind('.');
-    string save_path = "../result/video/" + file_name.substr(pos - 2, 2) + ".mp4";
-    vw = OneVideoWriter(save_path, FRAME_WIDTH, FRAME_HEIGHT, 2, 2, 4);
-#endif // VIDEO_SAVE
+
     Mat frame;
 
     while (true) {
@@ -237,21 +237,33 @@ void videoHandler(const string &file_name) {
 }
 
 int main(int argc, char *argv[]) {
-    vector <string> file_list;
+    vector<string> file_list;
     glob(SRC_PREFIX + "*.avi", file_list);
 
     if (file_list.empty()) {
         cout << "can't find video list\n";
         return 1;
     }
-
+#ifdef VIDEO_SAVE
+    string dst_prefix = "../result/video/";
+    string cmd = "mkdir " + dst_prefix + argv[1];
+    system(cmd.c_str());
+#endif
     roi_polygon = {{275, 195},
                    {187, 284},
                    {461, 284},
                    {342, 195}};
 
     for (string &file_name: file_list) {
+#ifdef VIDEO_SAVE
+        auto pos = file_name.rfind('.');
+        string save_path = dst_prefix + argv[1] + "/" + file_name.substr(pos - 2, 2) + ".avi";
+        vw = OneVideoWriter(save_path, FRAME_WIDTH, FRAME_HEIGHT, 2, 2, 4);
+#endif //VIDEO_SAVE
         videoHandler(file_name);
+#ifdef VIDEO_SAVE
+        cout << "completed: " << save_path << '\n';
+#endif //VIDEO_SAVE
     }
 
     return 0;
