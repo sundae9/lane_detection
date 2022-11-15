@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     vector<string> file_list[2];
 
     for (int i = 0; i < 2; i++) {
-        glob(SRC_PREFIX + argv[2 * i + 1] + "/result/video/" + argv[2 * i + 2] + "/*.mp4", file_list[i]);
+        glob(SRC_PREFIX + argv[2 * i + 1] + "/result/video/" + argv[2 * i + 2] + "/*.avi", file_list[i]);
         sort(file_list[i].begin(), file_list[i].end());
     }
 
@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < file_list[0].size(); i++) {
 
         auto pos = file_list[0][i].rfind('.');
-        result_path = DST_PREFIX + argv[3] + "/" + file_list[0][i].substr(pos - 2, 2) + ".mp4";
+        result_path = DST_PREFIX + argv[5] + "/" + file_list[0][i].substr(pos - 2, 2) + ".avi";
 
         makeVideo(file_list[0][i], file_list[1][i], result_path);
         cout << "completed: " << result_path << '\n';
