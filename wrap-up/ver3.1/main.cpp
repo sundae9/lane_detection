@@ -275,11 +275,20 @@ void test(InputArray frame) {
 
 #ifdef SHOW
 #ifdef THRESH_DEBUG
-    //    putText(result, cv::format("%f %f", ((double) roi. * 200),
-    //                               ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200)),
-    //            Point(50, 50),
-    //            0, 1,
-    //            Scalar(0, 0, 255), 2);
+    putText(result,
+            cv::format("%7d %18d",
+                       (roi.adaptiveThresh[0].white),
+                       (roi.adaptiveThresh[1].white)),
+            Point(20, 20),
+            0, 0.8,
+            Scalar(0, 0, 255), 1);
+    putText(result,
+            cv::format("%7d %18d",
+                       (roi.adaptiveThresh[0].thresh),
+                       (roi.adaptiveThresh[1].thresh)),
+            Point(20, 40),
+            0, 0.8,
+            Scalar(0, 0, 255), 1);
 #endif //THRESH_DEBUG
     showImage("result", result, 5, FRAME_WIDTH, FRAME_HEIGHT);
     waitKey(0);
@@ -292,14 +301,21 @@ void test(InputArray frame) {
 #ifdef VIDEO_SAVE
 #ifdef THRESH_DEBUG
     putText(result,
-            cv::format("%f %f",
-                       ((double) roi.adaptiveThresh[0].thresh),
-                       ((double) roi.adaptiveThresh[1].thresh)),
-            Point(50, 50),
-            0, 1,
-            Scalar(0, 0, 255), 2);
+        cv::format("%7d %18d",
+                   (roi.adaptiveThresh[0].white),
+                   (roi.adaptiveThresh[1].white)),
+        Point(20, 20),
+        0, 0.8,
+        Scalar(0, 0, 255), 1);
+putText(result,
+        cv::format("%7d %18d",
+                   (roi.adaptiveThresh[0].thresh),
+                   (roi.adaptiveThresh[1].thresh)),
+        Point(20, 40),
+        0, 0.8,
+        Scalar(0, 0, 255), 1);
 #endif //THRESH_DEBUG
-    vw.writeFrame(result, 3);
+vw.writeFrame(result, 3);
 #endif //VIDEO_SAVE
 }
 
@@ -339,7 +355,7 @@ int main(int argc, char *argv[]) {
         cout << "can't find image list\n";
         return 1;
     }
-    
+
 #ifdef VIDEO_SAVE
     string dst_prefix = "../result/video/";
     string cmd = "mkdir " + dst_prefix + argv[1];
@@ -354,7 +370,7 @@ int main(int argc, char *argv[]) {
 #endif // TIME_TEST
 #ifdef VIDEO_SAVE
         auto pos = file_name.rfind('.');
-        string save_path = dst_prefix + argv[1] + "/" + file_name.substr(pos - 2, 2) + ".mp4";
+        string save_path = dst_prefix + argv[1] + "/" + file_name.substr(pos - 2, 2) + ".avi";
         vw = OneVideoWriter(save_path, DEFAULT_ROI_WIDTH, DEFAULT_ROI_HEIGHT, 2, 2, 4);
 #endif //VIDEO_SAVE
 #ifdef DETECTION_RATE
