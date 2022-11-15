@@ -56,7 +56,7 @@ double getCotangent(Point p1, Point p2) {
 void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar color = Scalar(0, 255, 0)) {
     for (Vec4i pts: lines) {
         Point p1(pts[0], pts[1]), p2(pts[2], pts[3]);
-        line(frame, p1, p2, color, 1, 8);
+        line(frame, p1, p2, color, 1, LINE_AA);
     }
 }
 
@@ -80,7 +80,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
         lane[i].idx = -1;
 
         // ROI 기준 선 빨간색으로 표시
-        line(frame, {lane[i].x_top, 0}, {lane[i].x_bottom, DEFAULT_ROI_HEIGHT}, Scalar(0, 0, 255), 3, 8);
+        line(frame, {lane[i].x_top, 0}, {lane[i].x_bottom, DEFAULT_ROI_HEIGHT}, Scalar(0, 0, 255), 3, LINE_AA);
     }
 
     int idx = -1, pos; // 선분 index, pos: 왼쪽 or 오른쪽
@@ -95,9 +95,9 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 
         m = getCotangent(p1, p2);
 
-        if (abs(m) > GRADIENT_STD) { // 기준 기울기보다 작은 경우 (역수로 계산하므로 부등호 반대)
+        if (abs(m) > GRADIENT_DOWN_STD || abs(m) < GRADIENT_UP_STD) { // 기준 기울기보다 작은 경우 (역수로 계산하므로 부등호 반대)
 #ifdef GRAPHIC
-            line(frame, p1, p2, Scalar(0, 0, 255), 1, 8);
+            line(frame, p1, p2, Scalar(0, 0, 255), 1, LINE_AA);
 #endif //GRAPHIC
             continue;
         }
@@ -109,7 +109,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
         pos = m < 0 ? 0 : 1;  // 왼쪽, 오른쪽 결정
 
         // 프레임에 표기 (초록색)
-        line(frame, p1, p2, Scalar(0, 255, 0), 1, 8);
+        line(frame, p1, p2, Scalar(0, 255, 0), 1, LINE_AA);
 
         // 제곱 합
 
@@ -132,16 +132,16 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
     // 검출한 선분 update
     for (int i = 0; i < 2; i++) {
         if (lane[i].idx == -1) {
-            roi.line_info[i].not_found();
-
             // 동적 roi...
             if (!roi.line_info[i].adaptive_ROI_flag) {
                 continue;
             }
 
+            roi.line_info[i].not_found();
+
             // 기존 값으로 차로 표기
             Line_info prev = roi.line_info[i].line;
-            line(frame, {prev.x_bottom, DEFAULT_ROI_HEIGHT}, {prev.x_top, 0}, Scalar(255, 0, 0), 1, 8);
+            line(frame, {prev.x_bottom, DEFAULT_ROI_HEIGHT}, {prev.x_top, 0}, Scalar(255, 0, 0), 1, LINE_AA);
         } else {
             // 차선 검출 성공
             Point p1(lines[lane[i].idx][0], lines[lane[i].idx][1]), p2(lines[lane[i].idx][2], lines[lane[i].idx][3]);
@@ -161,7 +161,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
                     ) ||
                     (x1 <= prev[i].x_bottom - DX + BORDERLINE_OFFSET && x2 <= prev[i].x_top - DX + BORDERLINE_OFFSET)) {
                     // 노란색으로 표시
-                    line(frame, p1, p2, Scalar(0, 255, 255), 3, 8);
+                    line(frame, p1, p2, Scalar(0, 255, 255), 3, LINE_AA);
                     // ROI 초기화, 정적 ROI 적용
                     roi.triggerInit(i);
 
@@ -274,7 +274,7 @@ void test(InputArray frame) {
 
 #ifdef SHOW
 #ifdef THRESH_DEBUG
-    //    putText(result, cv::format("%f %f", ((double) white.first / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200),
+    //    putText(result, cv::format("%f %f", ((double) roi. * 200),
     //                               ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200)),
     //            Point(50, 50),
     //            0, 1,
@@ -290,11 +290,13 @@ void test(InputArray frame) {
 #endif // TIME_TEST
 #ifdef VIDEO_SAVE
 #ifdef THRESH_DEBUG
-    //    putText(result, cv::format("%f %f", ((double) white.first / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200),
-    //                               ((double) white.second / (DEFAULT_ROI_HEIGHT * DEFAULT_ROI_WIDTH) * 200)),
-    //            Point(50, 50),
-    //            0, 1,
-    //            Scalar(0, 0, 255), 2);
+    putText(result,
+            cv::format("%f %f",
+                       ((double) roi.adaptiveThresh[0].thresh),
+                       ((double) roi.adaptiveThresh[1].thresh)),
+            Point(50, 50),
+            0, 1,
+            Scalar(0, 0, 255), 2);
 #endif //THRESH_DEBUG
     vw.writeFrame(result, 3);
 #endif //VIDEO_SAVE
@@ -365,9 +367,10 @@ int main(int argc, char *argv[]) {
         }
         cout << frame_cnt << '\n';
 #endif //DETECTION_RATE
+#ifdef ROI_STAT
         cout << roi.dynamic_roi_count[0] << ", " << roi.dynamic_roi_count[1] << ", " << roi.init_count[0] << ", "
              << roi.init_count[1] << ", " << roi.total_frame << endl;
-
+#endif
     }
     return 0;
 }

@@ -17,7 +17,8 @@
 #define DEFAULT_ROI_HEIGHT (DEFAULT_ROI_DOWN - DEFAULT_ROI_UP) // ROI 높이
 #define DEFAULT_ROI_WIDTH (DEFAULT_ROI_RIGHT - DEFAULT_ROI_LEFT)
 // 기타 변수
-#define GRADIENT_STD 2 // cotanent(30 deg) = 1.73
+#define GRADIENT_DOWN_STD 2 // cotangent(26.56 deg) = 2
+#define GRADIENT_UP_STD 0.176327 // cotangent(80 deg) = 0.0112...
 
 #define DEFAULT_BINARIZATION_THRESH 150
 #define BORDERLINE_OFFSET 2
@@ -29,5 +30,6 @@
 //#define VIDEO_SAVE
 //#define DETECTION_RATE
 //#define THRESH_DEBUG
+//#define ROI_STAT
 
 #endif //VER3_1_CONSTANT_HPP
