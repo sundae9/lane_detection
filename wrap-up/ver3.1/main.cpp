@@ -3,6 +3,10 @@
 #include "./ROI.hpp"
 #include <cstdlib>
 
+#ifdef GRAPHIC
+#include <cmath>
+#endif
+
 ROI roi;
 
 #ifdef TIME_TEST
@@ -93,33 +97,29 @@ vector<Point> MaskArea() {
  * @return
  */
 vector<Point> MidLine() {
+
+    vector<Point> polygon;
+
+    polygon.assign({
+                           {DEFAULT_ROI_WIDTH / 2, DEFAULT_ROI_HEIGHT / 2},
+                           {DEFAULT_ROI_WIDTH / 2, DEFAULT_ROI_HEIGHT - 20}
+                   });
+
+    return polygon;
+}
+
+double midline_calculate_degree() {
     Line_info lineInfo1 = roi.line_info[0].line;
     Line_info lineInfo2 = roi.line_info[1].line;
 
     int x_mid_top = (lineInfo1.x_top + lineInfo2.x_top) / 2; // roi 윗변과의 교차점
     int x_mid_bottom = (lineInfo1.x_bottom + lineInfo2.x_bottom) / 2; // roi 밑변과의 교차점
 
-    vector<Point> polygon;
+    double gradient = (double) (x_mid_top - DEFAULT_ROI_WIDTH / 2) / (DEFAULT_ROI_HEIGHT / 2);
 
-
-//    if (lineInfo1.x_bottom == 0 && lineInfo1.x_top == 0) {
-//        mid = -1; // 검출되지 않았다면 화면 밖에 표시
-//    } else if (x1 == 0 || x2 == 0) {
-//        mid = DEFAULT_ROI_WIDTH / 2; // 한 쪽만 검출되었다면 중앙에 표시
-//    }
-
-#ifndef VIDEO_SAVE
-    printf("%d %d %d %d %d %d\n", lineInfo1.x_top, lineInfo1.x_bottom, lineInfo2.x_top, lineInfo2.x_bottom, x_mid_top,
-           x_mid_bottom);
-#endif
-
-    polygon.assign({
-                           {x_mid_top, 0},
-                           {x_mid_bottom, DEFAULT_ROI_HEIGHT}
-                   });
-
-    return polygon;
+    return atan(gradient);
 }
+
 
 /**
  * 현재 생성된 ROI가 이루는 진행 차선 영역, 차선의 중앙부 시각화
@@ -132,10 +132,29 @@ void display_graphic(InputOutputArray frame) {
     for (int i = 0; i < pts.size(); i += 2) {
         line(frame, pts[i], pts[i + 1], Scalar(255, 0, 0), 3, LINE_AA);  // draw mid line
     }
+
     if (pts.size() == 4) {
         pts = MidLine();
+
         line(frame, pts[0], pts[1], Scalar(0, 255, 255), 1, LINE_AA);  // draw mid line
+
+        double tangent = midline_calculate_degree();
+
+        pts = {
+                {DEFAULT_ROI_WIDTH / 2, DEFAULT_ROI_HEIGHT / 2},
+                {(DEFAULT_ROI_WIDTH / 2 + (int) (tangent * tangent_weight)), DEFAULT_ROI_HEIGHT / 2}
+        };
+
+        line(frame, pts[0], pts[1], Scalar(0, 255, 0), 1, LINE_AA);
+
+        putText(frame.getMat(),
+                cv::format("%7.3f",
+                           ((double) tangent * (180 / M_PI))),
+                Point(180, 85),
+                0, 0.5,
+                Scalar(0, 255, 255), 1);
     }
+
 }
 
 
@@ -381,19 +400,19 @@ void test(InputArray frame) {
 
 #ifdef THRESH_DEBUG
     putText(frame.getMat(),
-            cv::format("%7.3f %11.3f",
+            cv::format("%7.3f %15.3f",
                        ((double) roi.adaptiveThresh[0].white / (DEFAULT_ROI_WIDTH * DEFAULT_ROI_HEIGHT) * 200),
                        ((double) roi.adaptiveThresh[1].white / (DEFAULT_ROI_WIDTH * DEFAULT_ROI_HEIGHT) * 200)),
-            Point(120, 170),
-            0, 1,
-            Scalar(0, 255, 255), 2);
+            Point(150, 170),
+            0, 0.7,
+            Scalar(0, 255, 255), 1);
     putText(frame.getMat(),
-            cv::format("%7d %11d",
+            cv::format("%7d %15d",
                        (roi.adaptiveThresh[0].thresh),
                        (roi.adaptiveThresh[1].thresh)),
-            Point(120, 200),
-            0, 1,
-            Scalar(0, 255, 255), 2);
+            Point(150, 200),
+            0, 0.7,
+            Scalar(0, 255, 255), 1);
 #endif //THRESH_DEBUG
 #ifdef SHOW
     showImage("result", frame, 5, FRAME_WIDTH, FRAME_HEIGHT);
