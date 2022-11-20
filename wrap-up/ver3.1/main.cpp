@@ -198,16 +198,16 @@ void displayGraphic(InputOutputArray frame) {
                 0, 0.5,
                 Scalar(0, 255, 255), 1);
 
-        double process_time = calcFramePerSec();
-
-        putText(frame.getMat(),
-                cv::format("%d fps",
-                           ((int) process_time)),
-                Point(300, 20),
-                0, 0.5,
-                Scalar(0, 255, 255), 1);
     }
 
+    double process_time = calcFramePerSec();
+
+    putText(frame.getMat(),
+            cv::format("%d fps",
+                       ((int) process_time)),
+            Point(300, 20),
+            0, 0.5,
+            Scalar(0, 255, 255), 1);
 }
 
 
