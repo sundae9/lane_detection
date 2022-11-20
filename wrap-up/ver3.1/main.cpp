@@ -116,8 +116,10 @@ vector<Point> MidLine() {
 //        mid = DEFAULT_ROI_WIDTH / 2; // 한 쪽만 검출되었다면 중앙에 표시
 //    }
 
+#ifndef VIDEO_SAVE
     printf("%d %d %d %d %d %d\n", lineInfo1.x_top, lineInfo1.x_bottom, lineInfo2.x_top, lineInfo2.x_bottom, x_mid_top,
            x_mid_bottom);
+#endif
 
     polygon.assign({
                            {x_mid_top, 0},
@@ -166,7 +168,9 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 
         if (lane[i].x_bottom != 0 || lane[i].x_top != 0) {
             // ROI 기준 선 빨간색으로 표시
+#ifndef GRAPHIC
             line(frame, {lane[i].x_top, 0}, {lane[i].x_bottom, DEFAULT_ROI_HEIGHT}, Scalar(0, 0, 255), 3, LINE_AA);
+#endif //GRAHPIC
         }
     }
 
@@ -183,7 +187,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
         m = getCotangent(p1, p2);
 
         if (abs(m) > GRADIENT_DOWN_STD || abs(m) < GRADIENT_UP_STD) { // 기준 기울기보다 작은 경우 (역수로 계산하므로 부등호 반대)
-#ifdef GRAPHIC
+#ifndef GRAPHIC
             line(frame, p1, p2, Scalar(0, 0, 255), 1, LINE_AA);
 #endif //GRAPHIC
             continue;
@@ -195,9 +199,10 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 
         pos = m < 0 ? 0 : 1;  // 왼쪽, 오른쪽 결정
 
+#ifndef GRAPHIC
         // 프레임에 표기 (초록색)
         line(frame, p1, p2, Scalar(0, 255, 0), 1, LINE_AA);
-
+#endif
         // 제곱 합
 
 
@@ -228,7 +233,9 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 
             // 기존 값으로 차로 표기
             Line_info prev = roi.line_info[i].line;
-            line(frame, {prev.x_bottom, DEFAULT_ROI_HEIGHT}, {prev.x_top, 0}, Scalar(255, 0, 0), 1, LINE_AA);
+#ifndef GRAPHIC
+            line(frame, {prev.x_bottom, DEFAULT_ROI_HEIGHT}, {prev.x_top, 0}, Scalar(255, 0, 0), 2, LINE_AA);
+#endif
         } else {
             // 차선 검출 성공
             Point p1(lines[lane[i].idx][0], lines[lane[i].idx][1]), p2(lines[lane[i].idx][2], lines[lane[i].idx][3]);
@@ -248,7 +255,9 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
                     ) ||
                     (x1 <= prev[i].x_bottom - DX + BORDERLINE_OFFSET && x2 <= prev[i].x_top - DX + BORDERLINE_OFFSET)) {
                     // 노란색으로 표시
-                    line(frame, p1, p2, Scalar(0, 255, 255), 3, LINE_AA);
+#ifndef GRAPHIC
+                    line(frame, p1, p2, Scalar(0, 255, 255), 1, LINE_AA);
+#endif
                     // ROI 초기화, 정적 ROI 적용
                     roi.triggerInit(i);
 
@@ -258,9 +267,10 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
                     continue;
                 }
             }
-
+#ifndef GRAPHIC
             // 파란색으로 표기
-            line(frame, p1, p2, Scalar(255, 0, 0), 1, LINE_AA);
+            line(frame, p1, p2, Scalar(255, 0, 0), 2, LINE_AA);
+#endif
             roi.line_info[i].update_lines(p1, p2, getCotangent(p1, p2));
         }
     }
@@ -295,7 +305,7 @@ void test(InputArray frame) {
     cvtColor(road_area, grayscaled, COLOR_BGR2GRAY);
 
 #if defined(SHOW) || defined(VIDEO_SAVE)
-    Mat save_frame = Mat::zeros(FRAME_HEIGHT, FRAME_WIDTH, CV_8UC3);
+    Mat save_frame = frame.getMat().clone();
     Mat save_roi = save_frame(Range(DEFAULT_ROI_UP, DEFAULT_ROI_DOWN), Range(DEFAULT_ROI_LEFT, DEFAULT_ROI_RIGHT));
     Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
 #endif //SHOW or VIDEO_SAVE
@@ -394,7 +404,7 @@ void test(InputArray frame) {
 #endif //THRESH_DEBUG
 #ifdef SHOW
     showImage("result", frame, 5, FRAME_WIDTH, FRAME_HEIGHT);
-    waitKey(0);
+//    waitKey(0);
 #endif //SHOW
 #ifdef VIDEO_SAVE
     vw.writeFrame(frame.getMat(), 3);
