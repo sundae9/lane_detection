@@ -4,7 +4,9 @@
 #include <cstdlib>
 
 #ifdef GRAPHIC
+
 #include <cmath>
+
 #endif
 
 ROI roi;
@@ -52,6 +54,7 @@ double getCotangent(Point p1, Point p2) {
     return (double) (p1.x - p2.x) / (p1.y - p2.y);
 }
 
+
 /**
  * 프레임에 선분 그리는 함수
  * @param frame 배경 프레임 (원본)
@@ -70,22 +73,42 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar c
  * @return
  */
 vector<Point> MaskArea() {
+    // 왼쪽 차선
     Line_info avg = roi.line_info[0].line;
     int x1 = avg.x_bottom; // roi 밑변과의 교차점
     int x2 = avg.x_top; // roi 윗변과의 교차점
 
-
+    // 오른쪽 차선
     avg = roi.line_info[1].line;
     int x3 = avg.x_bottom; // roi 밑변과의 교차점
     int x4 = avg.x_top; // roi 윗변과의 교차점
 
     vector<Point> polygon;
+    bool flag[2];   // 동적 ROI 기존 값이 존재하는지?
 
-    if (x1 != 0 || x2 != 0) {
+    flag[0] = (x1 != 0 || x2 != 0);
+    flag[1] = (x3 != 0 || x4 != 0);
+
+    // 두 기준 값이 교차하는 경우
+    if (flag[0] && flag[1] && (x2 - x4 > DX)) {
+        // 둘 다 적응형 ROI가 꺼진 경우
+        if (!roi.line_info[0].adaptive_ROI_flag && !roi.line_info[1].adaptive_ROI_flag) {
+            return {};
+        }
+        // 1순위 - 적응형 ROI가 켜진 것 선택
+        // 2순위 - 둘 다 켜져있는 경우, x_bottom 좌표가 중심에서 먼 것 선택
+        int temp = roi.line_info[0].adaptive_ROI_flag ? 1 : 0;
+        if (roi.line_info[0].adaptive_ROI_flag && roi.line_info[1].adaptive_ROI_flag) {
+            temp = abs(x1 - DEFAULT_ROI_CENTER) > abs(x3 - DEFAULT_ROI_CENTER) ? 0 : 1;
+        }
+        flag[temp] = false;
+    }
+    // flag가 true인 선분만 삽입
+    if (flag[0]) {
         polygon.push_back({x1, DEFAULT_ROI_HEIGHT});
         polygon.push_back({x2, 0});
     }
-    if (x3 != 0 || x4 != 0) {
+    if (flag[1]) {
         polygon.push_back({x4, 0});
         polygon.push_back({x3, DEFAULT_ROI_HEIGHT});
     }
