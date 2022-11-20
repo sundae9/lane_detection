@@ -360,7 +360,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 
 }
 
-void test(InputArray frame) {
+void test(InputArray Inputframe) {
 #ifdef TIME_TEST
     tl.restart(); // 타이머 재설정
 #endif //TIME_TEST
@@ -368,13 +368,14 @@ void test(InputArray frame) {
     frame_process_time.reset();
     frame_process_time.start();
 #endif
-    Mat road_area = frame.getMat()(Range(DEFAULT_ROI_UP, DEFAULT_ROI_DOWN), Range(DEFAULT_ROI_LEFT, DEFAULT_ROI_RIGHT));
+    Mat frame = Inputframe.getMat()(Range(LABEL_OFFSET, FRAME_ROWS), Range(0, FRAME_COLS));
+    Mat road_area = frame(Range(DEFAULT_ROI_UP, DEFAULT_ROI_DOWN), Range(DEFAULT_ROI_LEFT, DEFAULT_ROI_RIGHT));
     // 0. to grayscale
     Mat grayscaled;
     cvtColor(road_area, grayscaled, COLOR_BGR2GRAY);
 
 #if defined(SHOW) || defined(VIDEO_SAVE)
-    Mat save_frame = frame.getMat().clone();
+    Mat save_frame = frame.clone();
     Mat save_roi = save_frame(Range(DEFAULT_ROI_UP, DEFAULT_ROI_DOWN), Range(DEFAULT_ROI_LEFT, DEFAULT_ROI_RIGHT));
     Mat show_roi = grayscaled.clone(); // roi 마스킹 화면 출력용
 #endif //SHOW or VIDEO_SAVE
@@ -442,7 +443,7 @@ void test(InputArray frame) {
 
 #ifdef TIME_TEST
     tl.stop_both_timer();
-    Mat preview_lines = frame.getMat().clone(); // 필터링 전 검출한 선분 그리기
+    Mat preview_lines = frame.clone(); // 필터링 전 검출한 선분 그리기
     drawLines(preview_lines, lines);
 
     tl.proc_record(preview_lines); // 4. hough line
@@ -456,14 +457,14 @@ void test(InputArray frame) {
     result.copyTo(road_area);
 
 #ifdef THRESH_DEBUG
-    putText(frame.getMat(),
+    putText(frame,
             cv::format("%7.3f %15.3f",
                        ((double) roi.adaptiveThresh[0].white / (DEFAULT_ROI_WIDTH * DEFAULT_ROI_HEIGHT) * 200),
                        ((double) roi.adaptiveThresh[1].white / (DEFAULT_ROI_WIDTH * DEFAULT_ROI_HEIGHT) * 200)),
             Point(150, 170),
             0, 0.7,
             Scalar(0, 255, 255), 1);
-    putText(frame.getMat(),
+    putText(frame,
             cv::format("%7d %15d",
                        (roi.adaptiveThresh[0].thresh),
                        (roi.adaptiveThresh[1].thresh)),
@@ -476,13 +477,13 @@ void test(InputArray frame) {
 //    waitKey(0);
 #endif //SHOW
 #ifdef VIDEO_SAVE
-    vw.writeFrame(frame.getMat(), 3);
+    vw.writeFrame(frame, 3);
 #endif //VIDEO_SAVE
 #endif //SHOW or VIDEO_SAVE
 
 #ifdef TIME_TEST
     tl.proc_record(result); // 5. filter lines
-    tl.total_record(frame.getMat(), result); // 6. total
+    tl.total_record(frame, result); // 6. total
 #endif // TIME_TEST
 }
 
@@ -539,7 +540,7 @@ int main(int argc, char *argv[]) {
 #ifdef VIDEO_SAVE
         auto pos = file_name.rfind('.');
         string save_path = dst_prefix + argv[1] + "/" + file_name.substr(pos - 2, 2) + ".avi";
-        vw = OneVideoWriter(save_path, FRAME_WIDTH, FRAME_HEIGHT, 2, 2, 4);
+        vw = OneVideoWriter(save_path, FRAME_WIDTH, FRAME_HEIGHT - LABEL_OFFSET, 2, 2, 4);
 #endif //VIDEO_SAVE
 #ifdef DETECTION_RATE
         for (int i = 0; i < 3; i++) {
