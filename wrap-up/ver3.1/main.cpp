@@ -141,9 +141,8 @@ double midLineCalcDegree() {
     Line_info lineInfo2 = roi.line_info[1].line;
 
     int x_mid_top = (lineInfo1.x_top + lineInfo2.x_top) / 2; // roi 윗변과의 교차점
-    int x_mid_bottom = (lineInfo1.x_bottom + lineInfo2.x_bottom) / 2; // roi 밑변과의 교차점
 
-    double gradient = (double) (x_mid_top - x_mid_bottom) / (DEFAULT_ROI_HEIGHT);
+    double gradient = (double) (x_mid_top - (DEFAULT_ROI_CENTER - 100)) / (DEFAULT_ROI_HEIGHT);
 
     return atan(gradient);
 }
