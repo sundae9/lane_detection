@@ -62,6 +62,87 @@ void drawLines(InputOutputArray frame, const std::vector<Vec4i> &lines, Scalar c
 }
 
 /**
+ * 동적 ROI 영역 네 점 반환
+ * @return
+ */
+vector<Point> MaskArea() {
+    Line_info avg = roi.line_info[0].line;
+    int x1 = avg.x_bottom; // roi 밑변과의 교차점
+    int x2 = avg.x_top; // roi 윗변과의 교차점
+
+
+    avg = roi.line_info[1].line;
+    int x3 = avg.x_bottom; // roi 밑변과의 교차점
+    int x4 = avg.x_top; // roi 윗변과의 교차점
+
+    if (!roi.line_info[0].adaptive_ROI_flag && !roi.line_info[1].adaptive_ROI_flag) {
+        return {}; // ROI 가 생성되지 않았다면 빈 벡터 반환하여 시각화하지 않음.
+    } else if (!roi.line_info[0].adaptive_ROI_flag) {
+        x1 = DEFAULT_ROI_WIDTH / 2;
+        x2 = DEFAULT_ROI_WIDTH / 2;
+    } else if (!roi.line_info[1].adaptive_ROI_flag) {
+        x3 = DEFAULT_ROI_WIDTH / 2;
+        x4 = DEFAULT_ROI_WIDTH / 2;
+    }
+
+    vector<Point> polygon;
+
+    polygon.assign({
+                           {x1, DEFAULT_ROI_HEIGHT},
+                           {x2, 0},
+                           {x4, 0},
+                           {x3, DEFAULT_ROI_HEIGHT}
+                   });
+
+    return polygon;
+}
+
+/**
+ * 동적 ROI 영역의 중앙 지점 반환
+ * @return
+ */
+vector<Point> MidLine() {
+    Line_info avg = roi.line_info[0].line;
+    int x1 = (avg.x_bottom + avg.x_top) / 2; // roi 밑변과의 교차점
+
+    avg = roi.line_info[1].line;
+    int x2 = (avg.x_bottom + avg.x_top) / 2; // roi 밑변과의 교차점
+
+    vector<Point> polygon;
+
+    int mid = (x1 + x2) / 2;
+
+    if (x1 == 0 && x2 == 0) {
+        mid = -1; // 검출되지 않았다면 화면 밖에 표시
+    } else if (x1 == 0 || x2 == 0) {
+        mid = DEFAULT_ROI_WIDTH / 2; // 한 쪽만 검출되었다면 중앙에 표시
+    }
+
+    polygon.assign({
+                           {mid, DEFAULT_ROI_HEIGHT},
+                           {mid, 0}
+                   });
+
+    return polygon;
+}
+
+/**
+ * 현재 생성된 ROI가 이루는 진행 차선 영역, 차선의 중앙부 시각화
+ * @param frame
+ */
+void display_graphic(InputOutputArray frame) {
+    vector<Point> pts;
+    pts = MaskArea();
+
+    polylines(frame, pts, true, Scalar(255, 0, 0), 5);  // draw roi
+
+    pts = MidLine();
+
+    line(frame, pts[0], pts[1], Scalar(0, 255, 255), 1, 8);  // draw mid line
+}
+
+
+/**
  * 허프 변환으로 검출한 차선 필터링
  * @param frame
  * @param lines
@@ -175,12 +256,17 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
                     continue;
                 }
             }
-            
+
             // 파란색으로 표기
             line(frame, p1, p2, Scalar(255, 0, 0), 1, LINE_AA);
             roi.line_info[i].update_lines(p1, p2, getCotangent(p1, p2));
         }
     }
+
+#ifdef GRAPHIC
+    display_graphic(frame);
+#endif
+
 #ifdef DETECTION_RATE
     // 검출 -> 동적 roi가 작동 중이거나 혹은 idx =! -1 인 경우
     // 미검출 -> 동적 roi가 미작동이면서 idx==-1 인 경우
