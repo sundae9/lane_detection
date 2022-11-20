@@ -75,23 +75,16 @@ vector<Point> MaskArea() {
     int x3 = avg.x_bottom; // roi 밑변과의 교차점
     int x4 = avg.x_top; // roi 윗변과의 교차점
 
-    if (x1 == 0 && x2 == 0) {
-        x1 = DEFAULT_ROI_WIDTH / 2;
-        x2 = DEFAULT_ROI_WIDTH / 2;
-    } else if (x3 == 0 && x4 == 0) {
-        x3 = DEFAULT_ROI_WIDTH / 2;
-        x4 = DEFAULT_ROI_WIDTH / 2;
-    }
-
     vector<Point> polygon;
 
-    polygon.assign({
-                           {x1, DEFAULT_ROI_HEIGHT},
-                           {x2, 0},
-                           {x4, 0},
-                           {x3, DEFAULT_ROI_HEIGHT}
-                   });
-
+    if (x1 != 0 || x2 != 0) {
+        polygon.push_back({x1, DEFAULT_ROI_HEIGHT});
+        polygon.push_back({x2, 0});
+    }
+    if (x3 != 0 || x4 != 0) {
+        polygon.push_back({x4, 0});
+        polygon.push_back({x3, DEFAULT_ROI_HEIGHT});
+    }
     return polygon;
 }
 
@@ -108,9 +101,8 @@ vector<Point> MidLine() {
 
     vector<Point> polygon;
 
-//    int mid = (x1 + x2) / 2;
 
-//    if (x1 == 0 && x2 == 0) {
+//    if (lineInfo1.x_bottom == 0 && lineInfo1.x_top == 0) {
 //        mid = -1; // 검출되지 않았다면 화면 밖에 표시
 //    } else if (x1 == 0 || x2 == 0) {
 //        mid = DEFAULT_ROI_WIDTH / 2; // 한 쪽만 검출되었다면 중앙에 표시
@@ -137,12 +129,13 @@ void display_graphic(InputOutputArray frame) {
     vector<Point> pts;
     pts = MaskArea();
 
-    line(frame, pts[0], pts[1], Scalar(255, 0, 0), 3, LINE_AA);  // draw mid line
-    line(frame, pts[2], pts[3], Scalar(255, 0, 0), 3, LINE_AA);  // draw mid line
-
-    pts = MidLine();
-
-    line(frame, pts[0], pts[1], Scalar(0, 255, 255), 1, LINE_AA);  // draw mid line
+    for (int i = 0; i < pts.size(); i += 2) {
+        line(frame, pts[i], pts[i + 1], Scalar(255, 0, 0), 3, LINE_AA);  // draw mid line
+    }
+    if (pts.size() == 4) {
+        pts = MidLine();
+        line(frame, pts[0], pts[1], Scalar(0, 255, 255), 1, LINE_AA);  // draw mid line
+    }
 }
 
 
