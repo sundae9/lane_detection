@@ -39,12 +39,16 @@ TickMeter frame_process_time;
 
 // 디버깅 용 이미지 출력 함수
 void showImage(const string &label, InputArray img, int t = 0, int x = 0, int y = 0) {
+#ifdef GRAPHIC
     frame_process_time.stop();
+#endif //GRAPHIC
     namedWindow(label, 1);
     moveWindow(label, x, y);
     imshow(label, img);
     waitKey(t);
+#ifdef GRAPHIC
     frame_process_time.start();
+#endif //GRAPHIC
 }
 
 #endif //SHOW
@@ -148,6 +152,7 @@ double midLineCalcDegree() {
     return atan(gradient);
 }
 
+#ifdef GRAPHIC
 
 /**
  * 현재 프레임 처리에 소요되는 시간. 단위는 fps. 반환 값이 millisecond 이기 때문에 1000을 곱하여 계산.
@@ -159,6 +164,8 @@ double calcFramePerSec() {
 
     return 1000 / process_time;
 }
+
+#endif //GRAPHIC
 
 /**
  * 현재 생성된 ROI가 이루는 진행 차선 영역, 차선의 중앙부, 프레임 처리에 소요되는 시간 시각화
@@ -200,8 +207,9 @@ void displayGraphic(InputOutputArray frame) {
 
     }
 
+#ifdef GRAPHIC
     double process_time = calcFramePerSec();
-
+#endif // GRAPHIC
     putText(frame.getMat(),
             cv::format("%d fps",
                        ((int) process_time)),
