@@ -75,12 +75,10 @@ vector<Point> MaskArea() {
     int x3 = avg.x_bottom; // roi 밑변과의 교차점
     int x4 = avg.x_top; // roi 윗변과의 교차점
 
-    if (!roi.line_info[0].adaptive_ROI_flag && !roi.line_info[1].adaptive_ROI_flag) {
-        return {}; // ROI 가 생성되지 않았다면 빈 벡터 반환하여 시각화하지 않음.
-    } else if (!roi.line_info[0].adaptive_ROI_flag) {
+    if (x1 == 0 && x2 == 0) {
         x1 = DEFAULT_ROI_WIDTH / 2;
         x2 = DEFAULT_ROI_WIDTH / 2;
-    } else if (!roi.line_info[1].adaptive_ROI_flag) {
+    } else if (x3 == 0 && x4 == 0) {
         x3 = DEFAULT_ROI_WIDTH / 2;
         x4 = DEFAULT_ROI_WIDTH / 2;
     }
@@ -102,25 +100,28 @@ vector<Point> MaskArea() {
  * @return
  */
 vector<Point> MidLine() {
-    Line_info avg = roi.line_info[0].line;
-    int x1 = (avg.x_bottom + avg.x_top) / 2; // roi 밑변과의 교차점
+    Line_info lineInfo1 = roi.line_info[0].line;
+    Line_info lineInfo2 = roi.line_info[1].line;
 
-    avg = roi.line_info[1].line;
-    int x2 = (avg.x_bottom + avg.x_top) / 2; // roi 밑변과의 교차점
+    int x_mid_top = (lineInfo1.x_top + lineInfo2.x_top) / 2; // roi 윗변과의 교차점
+    int x_mid_bottom = (lineInfo1.x_bottom + lineInfo2.x_bottom) / 2; // roi 밑변과의 교차점
 
     vector<Point> polygon;
 
-    int mid = (x1 + x2) / 2;
+//    int mid = (x1 + x2) / 2;
 
-    if (x1 == 0 && x2 == 0) {
-        mid = -1; // 검출되지 않았다면 화면 밖에 표시
-    } else if (x1 == 0 || x2 == 0) {
-        mid = DEFAULT_ROI_WIDTH / 2; // 한 쪽만 검출되었다면 중앙에 표시
-    }
+//    if (x1 == 0 && x2 == 0) {
+//        mid = -1; // 검출되지 않았다면 화면 밖에 표시
+//    } else if (x1 == 0 || x2 == 0) {
+//        mid = DEFAULT_ROI_WIDTH / 2; // 한 쪽만 검출되었다면 중앙에 표시
+//    }
+
+    printf("%d %d %d %d %d %d\n", lineInfo1.x_top, lineInfo1.x_bottom, lineInfo2.x_top, lineInfo2.x_bottom, x_mid_top,
+           x_mid_bottom);
 
     polygon.assign({
-                           {mid, DEFAULT_ROI_HEIGHT},
-                           {mid, 0}
+                           {x_mid_top, 0},
+                           {x_mid_bottom, DEFAULT_ROI_HEIGHT}
                    });
 
     return polygon;
@@ -134,11 +135,12 @@ void display_graphic(InputOutputArray frame) {
     vector<Point> pts;
     pts = MaskArea();
 
-    polylines(frame, pts, true, Scalar(255, 0, 0), 5);  // draw roi
+    line(frame, pts[0], pts[1], Scalar(255, 0, 0), 3, LINE_AA);  // draw mid line
+    line(frame, pts[2], pts[3], Scalar(255, 0, 0), 3, LINE_AA);  // draw mid line
 
     pts = MidLine();
 
-    line(frame, pts[0], pts[1], Scalar(0, 255, 255), 1, 8);  // draw mid line
+    line(frame, pts[0], pts[1], Scalar(0, 255, 255), 1, LINE_AA);  // draw mid line
 }
 
 
@@ -263,9 +265,6 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
         }
     }
 
-#ifdef GRAPHIC
-    display_graphic(frame);
-#endif
 
 #ifdef DETECTION_RATE
     // 검출 -> 동적 roi가 작동 중이거나 혹은 idx =! -1 인 경우
@@ -280,6 +279,10 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
     frame_cnt++;
 #endif //DETECTION_RATE
     roi.updateROI();
+#ifdef GRAPHIC
+    display_graphic(frame);
+#endif
+
 }
 
 void test(InputArray frame) {
@@ -391,7 +394,7 @@ void test(InputArray frame) {
 #endif //THRESH_DEBUG
 #ifdef SHOW
     showImage("result", frame, 5, FRAME_WIDTH, FRAME_HEIGHT);
-//    waitKey(0);
+    waitKey(0);
 #endif //SHOW
 #ifdef VIDEO_SAVE
     vw.writeFrame(frame.getMat(), 3);
