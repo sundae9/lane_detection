@@ -3,11 +3,6 @@
 #include "./ROI.hpp"
 #include <cstdlib>
 
-#ifdef GRAPHIC
-
-#include <cmath>
-
-#endif
 
 ROI roi;
 
@@ -32,14 +27,24 @@ using namespace cv;
 
 const string SRC_PREFIX = "../../video/";
 
+#ifdef GRAPHIC
+
+#include <cmath>
+
+TickMeter frame_process_time;
+
+#endif
+
 #ifdef SHOW
 
 // 디버깅 용 이미지 출력 함수
 void showImage(const string &label, InputArray img, int t = 0, int x = 0, int y = 0) {
+    frame_process_time.stop();
     namedWindow(label, 1);
     moveWindow(label, x, y);
     imshow(label, img);
     waitKey(t);
+    frame_process_time.start();
 }
 
 #endif //SHOW
@@ -131,7 +136,7 @@ vector<Point> MidLine() {
     return polygon;
 }
 
-double midline_calculate_degree() {
+double midLineCalcDegree() {
     Line_info lineInfo1 = roi.line_info[0].line;
     Line_info lineInfo2 = roi.line_info[1].line;
 
@@ -145,10 +150,21 @@ double midline_calculate_degree() {
 
 
 /**
- * 현재 생성된 ROI가 이루는 진행 차선 영역, 차선의 중앙부 시각화
+ * 현재 프레임 처리에 소요되는 시간. 단위는 fps. 반환 값이 millisecond 이기 때문에 1000을 곱하여 계산.
+ * @return 현재 프레임 처리에 소요되는 시간
+ */
+double calcFramePerSec() {
+    frame_process_time.stop();
+    double process_time = frame_process_time.getTimeMilli();
+
+    return 1000 / process_time;
+}
+
+/**
+ * 현재 생성된 ROI가 이루는 진행 차선 영역, 차선의 중앙부, 프레임 처리에 소요되는 시간 시각화
  * @param frame
  */
-void display_graphic(InputOutputArray frame) {
+void displayGraphic(InputOutputArray frame) {
     vector<Point> pts;
     pts = MaskArea();
 
@@ -161,7 +177,7 @@ void display_graphic(InputOutputArray frame) {
 
         line(frame, pts[0], pts[1], Scalar(0, 255, 255), 1, LINE_AA);  // draw mid line
 
-        double tangent = midline_calculate_degree();
+        double tangent = midLineCalcDegree();
 
         pts = {
                 {DEFAULT_ROI_WIDTH / 2, DEFAULT_ROI_HEIGHT / 2},
@@ -169,11 +185,25 @@ void display_graphic(InputOutputArray frame) {
         };
 
         line(frame, pts[0], pts[1], Scalar(0, 255, 0), 1, LINE_AA);
+        pts[0].x = pts[1].x;
+        pts[0].y += 5;
+        pts[1].y -= 5;
+
+        line(frame, pts[0], pts[1], Scalar(0, 255, 0), 1, LINE_AA);
 
         putText(frame.getMat(),
                 cv::format("%7.3f",
                            ((double) tangent * (180 / M_PI))),
                 Point(180, 85),
+                0, 0.5,
+                Scalar(0, 255, 255), 1);
+
+        double process_time = calcFramePerSec();
+
+        putText(frame.getMat(),
+                cv::format("%d fps",
+                           ((int) process_time)),
+                Point(300, 20),
                 0, 0.5,
                 Scalar(0, 255, 255), 1);
     }
@@ -325,7 +355,7 @@ void filterLinesWithAdaptiveROI(InputOutputArray frame, const std::vector<Vec4i>
 #endif //DETECTION_RATE
     roi.updateROI();
 #ifdef GRAPHIC
-    display_graphic(frame);
+    displayGraphic(frame);
 #endif
 
 }
@@ -334,6 +364,10 @@ void test(InputArray frame) {
 #ifdef TIME_TEST
     tl.restart(); // 타이머 재설정
 #endif //TIME_TEST
+#ifdef GRAPHIC
+    frame_process_time.reset();
+    frame_process_time.start();
+#endif
     Mat road_area = frame.getMat()(Range(DEFAULT_ROI_UP, DEFAULT_ROI_DOWN), Range(DEFAULT_ROI_LEFT, DEFAULT_ROI_RIGHT));
     // 0. to grayscale
     Mat grayscaled;
@@ -459,6 +493,7 @@ void videoHandler(const string &file_name) {
         cout << "Can't open video\n";
         return;
     }
+
 
     roi = ROI();
 
