@@ -137,7 +137,7 @@ void ROI::updateROI() {
     bool flag[2] = {false, false};
     for (int i = 0; i < 2; i++) {
         // 1. 정적 roi 리셋이 필요한 경우
-        if (this->line_info[i].undetected_cnt == UNDETECTED_STD) {
+        if (this->line_info[i].undetected_cnt >= UNDETECTED_STD) {
             this->line_info[i].reset();
             this->initROI(i);
             flag[i] = true;
