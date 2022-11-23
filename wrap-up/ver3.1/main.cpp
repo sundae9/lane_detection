@@ -526,7 +526,15 @@ void videoHandler(const string &file_name) {
 
 int main(int argc, char *argv[]) {
     vector<string> file_list;
-    glob(SRC_PREFIX + "*.avi", file_list);
+    string regex = "demo*.avi";
+
+#ifndef VIDEO_SAVE
+    if (argc >= 2) {
+        regex = argv[1];
+    }
+#endif //not VIDEO_SAVE
+
+    glob(SRC_PREFIX + regex, file_list);
 
     if (file_list.empty()) {
         cout << "can't find image list\n";
@@ -556,6 +564,9 @@ int main(int argc, char *argv[]) {
         }
         frame_cnt = 0;
 #endif //DETECTION_RATE
+#ifdef SHOW
+        cout << file_name << '\n';
+#endif //SHOW
         videoHandler(file_name);
 #ifdef VIDEO_SAVE
         cout << "completed: " << save_path << '\n';
