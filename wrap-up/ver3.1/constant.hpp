@@ -4,7 +4,7 @@
 // 영상 정보
 #define LABEL_OFFSET 10
 #define FRAME_WIDTH 640
-#define FRAME_HEIGHT 360
+#define FRAME_HEIGHT 285
 #define FRAME_ROWS FRAME_HEIGHT
 #define FRAME_COLS FRAME_WIDTH
 

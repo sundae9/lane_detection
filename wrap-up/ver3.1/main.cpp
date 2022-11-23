@@ -212,7 +212,7 @@ void displayGraphic(InputOutputArray frame) {
     putText(frame.getMat(),
             cv::format("%d fps",
                        ((int) process_time)),
-            Point(300, 20),
+            Point(365, 70),
             0, 0.5,
             Scalar(0, 255, 255), 1);
 #endif // GRAPHIC
@@ -510,13 +510,13 @@ void videoHandler(const string &file_name) {
 
     while (true) {
         video >> frame;
-
         if (frame.empty()) {
             break;
         }
 #ifdef TIME_TEST
         tl.prev_img = frame.clone(); // 처리 전 원본 사진 저장
 #endif //TIME_TEST
+        frame = frame(Rect(0, 0, FRAME_WIDTH, FRAME_HEIGHT));
         test(frame);
     }
 
