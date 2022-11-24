@@ -31,11 +31,11 @@
 
 // MODE
 //#define SHOW //imshow  활성화
-#define TIME_TEST // 출력 문구
-//#define GRAPHIC
-//#define VIDEO_SAVE
+//#define TIME_TEST // 출력 문구
+#define GRAPHIC
+#define VIDEO_SAVE
 //#define DETECTION_RATE
-//#define THRESH_DEBUG
+#define THRESH_DEBUG
 //#define ROI_STAT
 
 
