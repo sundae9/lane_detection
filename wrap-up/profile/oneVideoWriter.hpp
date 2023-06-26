@@ -55,7 +55,8 @@ void OneVideoWriter::writeFrame(cv::Mat frame, int idx) {
         cvtColor(frame, frame_cp, cv::COLOR_GRAY2BGR);
     }
 
-    int r = idx / this->row, c = idx % this->col;
+    int r = idx / this->col, c = idx % this->col;
+
     cv::Mat roi = this->merged_frame(cv::Rect(c * this->width, r * this->height, this->width, this->height));
     frame_cp.copyTo(roi);
 
